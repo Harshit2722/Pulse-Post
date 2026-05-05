@@ -1,18 +1,6 @@
 version: '3.8'
 
 services:
-  mongo:
-    image: mongo:latest
-    container_name: pulse-mongo
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo-data:/data/db
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password123
-
-
   server:
     build:
       context: ./server
@@ -31,8 +19,7 @@ services:
     volumes:
       - ./server:/app
       - /app/node_modules
-    depends_on:
-      - mongo
+    
 
   client:
     build:
@@ -43,6 +30,3 @@ services:
       - "3000:80"
     depends_on:
       - server
-  
-volumes:
-  mongo-data:
