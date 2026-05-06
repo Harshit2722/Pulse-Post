@@ -18,5 +18,8 @@ API.interceptors.request.use((config) => {
 const registerUser = (formData) => API.post('/users/register', formData);
 const loginUser = (formData) => API.post('/users/login', formData);
 
+const getCurrentUser = ()=> API.get('/users/me')
 
-export {registerUser,loginUser}
+
+export {registerUser,loginUser,getCurrentUser}
+export default API

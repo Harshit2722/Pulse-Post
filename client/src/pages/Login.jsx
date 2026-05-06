@@ -2,18 +2,36 @@ import { useState } from 'react';
 import { loginUser } from '../utils/axios';
 import { toast } from 'react-hot-toast';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuth} from '../context/AuthContext';
+
 
 const Login = () => {
     const [form, setForm] = useState({ email: '', password: '' });
     const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState({});
     const navigate = useNavigate();
+    const { login } = useAuth();
+
+
+    //validate function
+    const validate = () => {
+        const errors = {};
+        if (!form.email) errors.email = "Email is required";
+        if (!form.password) errors.password = "Password is required";
+        setErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
 
     const submit = async (e) => {
         e.preventDefault();
+
+        if(!validate()) return;
+
         setLoading(true);
         try {
             const { data } = await loginUser(form);
-            localStorage.setItem('token', data.data.token);
+            const {token,user} = data.data;
+            login(user, token);
             toast.success("Welcome back! ⚡");
             navigate('/dashboard');
         } catch (err) {
@@ -22,6 +40,17 @@ const Login = () => {
             setLoading(false);
         }
     };
+
+    //global handle change  
+    const handleChange = (e) =>{
+        const {name, value} = e.target;
+        setForm(prev => ({ ...prev, [name]: value }));
+
+        //clear errors
+        if(errors[name]){
+            setErrors(prev => ({...prev, [name]: ""}));
+        }
+    }
 
     return (
         <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-4">
@@ -38,33 +67,42 @@ const Login = () => {
 
                 <form onSubmit={submit} className="space-y-6">
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Email Address</label>
+                        <label className="block text-sm font-medium text-gray-300 mb-1">
+                            Email Address
+                        </label>
                         <input
+                            name="email"
                             type="email"
-                            placeholder="name@example.com"
-                            className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
-                            onChange={(e) => setForm({ ...form, email: e.target.value })}
+                            placeholder="name@example.com"  
+                            className={`w-full bg-white/5 border ${errors.email ? 'border-red-500' : 'border-white/10'} rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all`}
+                            onChange={handleChange}
                         />
+                        {errors.email && <p className="mt-1 text-xs text-red-400 font-medium">{errors.email}</p>}
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
-                        <input
+                        <label className="block text-sm font-medium text-gray-300 mb-1">
+                            Password
+                        </label>
+                            <input
+                            name="password"
                             type="password"
                             placeholder="••••••••"
-                            className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
-                            onChange={(e) => setForm({ ...form, password: e.target.value })}
-                        />
+                            className={`w-full bg-white/5 border ${errors.password ? 'border-red-500' : 'border-white/10'} rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all`}
+                            onChange={handleChange}
+                            />
+                        {errors.password && <p className="mt-1 text-xs text-red-400 font-medium">{errors.password}</p>}
                     </div>
 
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold py-3 rounded-lg shadow-lg shadow-blue-500/25 transform transition-all active:scale-[0.98]"
+                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold py-3 rounded-lg shadow-lg shadow-blue-500/25 transform transition-all active:scale-[0.98] disabled:opacity-50"
                     >
                         {loading ? "Authenticating..." : "Sign In"}
                     </button>
                 </form>
+
 
                 <div className="mt-8 text-center">
                     <p className="text-gray-400 text-sm">
