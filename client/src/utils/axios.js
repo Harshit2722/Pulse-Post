@@ -20,6 +20,14 @@ const loginUser = (formData) => API.post('/users/login', formData);
 
 const getCurrentUser = ()=> API.get('/users/me')
 
+const createPost = (postData) => API.post("/posts/create",postData);
 
-export {registerUser,loginUser,getCurrentUser}
+const fetchPosts = () => API.get("/posts");
+
+const deletePost = (id) => API.delete(`/posts/${id}`);
+
+const toggleLike = (id) => API.post(`/posts/${id}/like`);
+
+
+export {registerUser,loginUser,getCurrentUser,createPost,fetchPosts,deletePost,toggleLike}
 export default API

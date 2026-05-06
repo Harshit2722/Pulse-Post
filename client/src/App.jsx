@@ -11,7 +11,7 @@ import { AuthProvider,useAuth } from './context/AuthContext';
 const ProtectedRoute = ({ children }) => {
     const { user, loading } = useAuth();
     
-    if (loading) return <div className="min-h-screen bg-[#0f172a] text-white flex items-center justify-center font-bold text-2xl animate-pulse">Pulse...</div>;
+    if (loading) return <div className="min-h-screen bg-[#0f172a] text-white flex items-center justify-center font-bold text-2xl animate-pulse">Loading...</div>;
     
     if(!user){
         return <Navigate to="/login" replace={true}/>;
