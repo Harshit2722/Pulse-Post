@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect,useRef} from 'react';
 import { useAuth } from '../context/AuthContext';
-import { fetchPosts } from '../utils/axios';
+import { fetchPosts,deletePost,toggleLike } from '../utils/axios';
 import CreatePost from '../components/CreatePost';
 import { toast } from 'react-hot-toast';
 
 const Dashboard = () => {
     const { user, socket, logout } = useAuth();
     const [posts, setPosts] = useState([]);
+    const notifiedRef = useRef(new Set());
 
     // 1. Initial Fetch
     useEffect(() => {
@@ -33,10 +34,70 @@ const Dashboard = () => {
             if (data.post.author._id !== user?._id) {
                 toast(`${data.post.author.username} just pulsed!`, { icon: '🔔' });
             }
-        });
+        })
+        
+        socket.on("post-deleted", (id) => {
+            // 1. Check if we already notified for this ID
+            if (notifiedRef.current.has(id)) return;
+            notifiedRef.current.add(id);
 
-        return () => socket.off("new-post");
+            setPosts((prevPosts) => {
+                const postToDelete = prevPosts.find(p => p._id === id);
+        
+        if (postToDelete) {
+            // Add an 'id' to the toast options
+            if (postToDelete.author._id === user?._id) {
+                toast.success("Your pulse has been deleted 🗑️", { id: `delete-${id}` });
+            } else {
+                toast(`${postToDelete.author.username} just deleted a pulse!`, { icon: "🔔", id: `delete-${id}` });
+            }
+        }
+        return prevPosts.filter(p => p._id !== id);
+    });
+    });
+
+    socket.on("update-likes", (data) => {
+    setPosts(prev => prev.map(p => 
+        p._id === data.postId ? { ...p, likes: data.likes } : p
+    ));
+
+    // Optional: Show notification if someone likes YOUR post
+    if (data.isLikedNow && data.likerName !== user.username) {
+        toast(`${data.likerName} loved your pulse!`, { icon: '❤️', id: `like-${data.postId}` });
+    }
+    }); 
+
+
+
+
+        
+
+        return () => {
+            socket.off("new-post");
+            socket.off("post-deleted");
+            socket.off("update-likes");
+        };
     }, [socket, user]);
+
+
+     const handleDelete = async (postId) => {
+        if (!window.confirm("Are you sure? This pulse will be lost in space! 🌌")) return;
+        try {
+            await deletePost(postId)
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Failed to delete pulse");
+        }
+    };
+
+
+    const handleLike = async (postId) => {
+    try {
+        await toggleLike(postId);
+    } catch (err) {
+        toast.error(err.response?.data?.message || "Failed to like post");
+    }
+};
+
 
     return (
     <div className="min-h-screen bg-[#080d1a] text-white flex flex-col">
@@ -98,15 +159,35 @@ const Dashboard = () => {
                     ) : (
                         posts.map(post => (
                             <div key={post._id} className="relative bg-[#0f172a]/50 border border-white/10 p-8 rounded-3xl group transition-all hover:border-blue-500/30 hover:bg-white/[0.03]">
-                                 {/* Delete Button */}
-                                 {post.author._id === user?._id && (
+                                 {/* --- TOP RIGHT ACTIONS (LIKE & DELETE) --- */}
+                                    <div className="absolute top-6 right-6 flex items-center space-x-2">
+    
+                                    {/* LIKE BUTTON */}    
                                     <button 
-                                        onClick={() => handleDelete(post._id)}
-                                        className="absolute top-6 right-6 text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-2 bg-white/5 rounded-full hover:bg-red-500/10"
+                                        onClick={() => handleLike(post._id)}
+                                        className={`flex items-center space-x-1 px-3 py-1.5 rounded-full transition-all border ${
+                                            post.likes.includes(user?._id) 
+                                            ? 'bg-pink-500/10 border-pink-500/20 text-pink-500' 
+                                            : 'bg-white/5 border-white/5 text-gray-500 hover:text-pink-400 hover:bg-white/10'
+                                        }`}
                                     >
-                                        🗑️
+                                        <span className="text-sm">{post.likes.includes(user?._id) ? '❤️' : '🤍'}</span>
+                                        <span className="text-xs font-bold font-mono">{post.likes.length}</span>
                                     </button>
-                                )}
+                                    
+
+                                    {/* DELETE BUTTON (Only for owner) */}
+                                    {post.author._id === user?._id && (
+                                        <button 
+                                            onClick={() => handleDelete(post._id)}
+                                            className="p-1.5 bg-white/5 rounded-full text-gray-600 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all border border-white/5"
+                                            title="Delete Pulse"
+                                        >
+                                            <span className="text-sm">🗑️</span>
+                                        </button>
+                                    )}
+                                </div>
+
 
                                 <div className="flex items-center space-x-4 mb-6">
                                     <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center font-bold text-blue-400 border border-white/10 transform rotate-3 group-hover:rotate-0 transition-transform">

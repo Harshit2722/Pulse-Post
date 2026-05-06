@@ -24,6 +24,10 @@ const createPost = (postData) => API.post("/posts/create",postData);
 
 const fetchPosts = () => API.get("/posts");
 
+const deletePost = (id) => API.delete(`/posts/${id}`);
 
-export {registerUser,loginUser,getCurrentUser,createPost,fetchPosts}
+const toggleLike = (id) => API.post(`/posts/${id}/like`);
+
+
+export {registerUser,loginUser,getCurrentUser,createPost,fetchPosts,deletePost,toggleLike}
 export default API
