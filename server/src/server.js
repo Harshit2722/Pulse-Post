@@ -11,6 +11,7 @@ const jwt = require('jsonwebtoken');
 const errorHandler = require('./middleware/errorMiddleware');
 const User = require("./models/userModel");
 const userRoutes = require("./routes/userRoutes");
+const postRoutes = require('./routes/postRoutes')
 
 const httpServer = http.createServer(app);
 
@@ -19,7 +20,9 @@ const io = new Server(httpServer,{
         origin: "http://localhost:5173",
         credentials: true,
     }
-});
+  });
+
+app.set("io",io)
 
 io.on("connection", (socket)=>{
     console.log("Socket.io connected", socket.id);
@@ -60,6 +63,7 @@ app.use((req,res,next)=>{
 })
 
 app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/posts',postRoutes)
 
 app.get('/', (req, res) => {
   res.send('Pulse-Post Backend is alive! 🚀');
