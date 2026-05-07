@@ -1,1 +1,46 @@
 @import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  --zen-bg: #F8F7F4;
+  --zen-sidebar: #F1EFEA;
+  --zen-accent: #526D62;
+  --zen-accent-soft: #DAE2DF;
+  --zen-text-main: #2C3330;
+  --zen-text-dim: #707774;
+  --zen-card: #FFFFFF;
+  --zen-border: #E8E4DF;
+}
+body {
+  margin: 0;
+  background-color: var(--zen-bg);
+  color: var(--zen-text-main);
+  font-family: 'Instrument Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+/* Floating Star Animation */
+@keyframes zenDrift {
+  0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+  15% { opacity: 0.6; }
+  85% { opacity: 0.6; }
+  100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
+}
+.zen-drifter {
+  position: absolute;
+  bottom: -100px;
+  animation: zenDrift linear infinite;
+  pointer-events: none;
+  font-size: 2.5rem;
+  color: #526D62;
+  filter: blur(1px);
+  z-index: 1;
+}
+.zen-blob {
+  animation: zenFloat 20s ease-in-out infinite;
+}
+@keyframes zenFloat {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(30px, -30px) scale(1.1); }
+  100% { transform: translate(0, 0) scale(1); }
+}

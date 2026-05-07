@@ -1,14 +1,12 @@
 import { useState } from 'react';
 import { registerUser } from '../utils/axios';
-import { toast } from 'react-hot-toast';
 import { useNavigate, Link } from 'react-router-dom';
-
+import { toast } from 'react-hot-toast';
 const Register = () => {
     const [form, setForm] = useState({ username: '', email: '', password: '' });
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
-
     const validate = () => {
         const newErrors = {};
         if (!form.username.trim()) newErrors.username = "Username is required";
@@ -17,15 +15,17 @@ const Register = () => {
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
-
+    const handleChange = (e) => {
+        setForm({ ...form, [e.target.name]: e.target.value });
+        if (errors[e.target.name]) setErrors({ ...errors, [e.target.name]: '' });
+    };
     const submit = async (e) => {
         e.preventDefault();
         if (!validate()) return;
-
         setLoading(true);
         try {
             await registerUser(form);
-            toast.success("Welcome to the Pulse! 🚀");
+            toast.success("Welcome! 🚀");
             navigate('/login');
         } catch (err) {
             toast.error(err.response?.data?.message || "Registration failed");
@@ -33,85 +33,82 @@ const Register = () => {
             setLoading(false);
         }
     };
-
-    const handleChange = (e) => {
-
-        setForm({ ...form, [e.target.name]: e.target.value });
-
-        if (errors[e.target.name]) setErrors({ ...errors, [e.target.name]: '' });
-    };
-
     return (
-        <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-4">
-            {/* Background Decorative Blobs */}
-            <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
-            <div className="absolute top-0 -right-4 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
-
-            <div className="relative bg-white/10 backdrop-blur-lg border border-white/20 p-8 rounded-2xl shadow-2xl w-full max-w-md transition-all hover:border-white/30">
-                <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold text-white mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-                        Pulse Post
-                    </h1>
-                    <p className="text-gray-400">Create your creator account</p>
+        <div className="h-screen w-screen flex bg-white font-['Instrument_Sans'] overflow-hidden">
+            
+            <div className="hidden lg:flex lg:w-1/2 bg-[#DAE2DF] p-16 flex-col justify-center relative overflow-hidden h-full">
+                
+                {/* FLOATING STARS */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                    <span className="zen-drifter" style={{ left: '10%', animationDuration: '15s' }}>✦</span>
+                    <span className="zen-drifter" style={{ left: '30%', animationDuration: '22s', animationDelay: '2s' }}>✧</span>
+                    <span className="zen-drifter" style={{ left: '50%', animationDuration: '18s', animationDelay: '5s' }}>✦</span>
+                    <span className="zen-drifter" style={{ left: '70%', animationDuration: '25s', animationDelay: '1s' }}>✧</span>
+                    <span className="zen-drifter" style={{ left: '90%', animationDuration: '20s', animationDelay: '7s' }}>✦</span>
                 </div>
-
-                <form onSubmit={submit} className="space-y-6">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Username</label>
-                        <input
-                            name="username"
-                            type="text"
-                            placeholder="johndoe"
-                            className={`w-full bg-white/5 border ${errors.username ? 'border-red-500' : 'border-white/10'} rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all`}
-                            onChange={handleChange}
-                        />
-                        {errors.username && <p className="mt-1 text-xs text-red-400">{errors.username}</p>}
+                <div className="absolute bottom-[-5%] left-[-10%] w-96 h-96 bg-[#E6D5C3] rounded-full blur-[120px] zen-blob opacity-40"></div>
+                <div className="relative z-10 max-w-lg">
+                    <h1 className="text-xl font-bold tracking-tighter text-[#2C3330] mb-12">PULSE-POST</h1>
+                    <h2 className="text-6xl font-bold text-[#2C3330] leading-tight mb-6">Begin your journey.</h2>
+                    <p className="text-lg text-[#2C3330]/70 leading-relaxed">
+                        Join over 50,000 creators who have chosen a calmer, more intentional way to connect.
+                    </p>
+                </div>
+            </div>
+            <div className="w-full lg:w-1/2 flex flex-col justify-center p-8 lg:p-20 bg-white h-full overflow-y-auto">
+                <div className="max-w-md w-full mx-auto py-4">
+                    <div className="mb-8">
+                        <h3 className="text-3xl font-bold text-[#2C3330] mb-2">Create Account</h3>
+                        <p className="text-[#707774] text-sm">Join the new era of creator connection.</p>
                     </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Email Address</label>
-                        <input
-                            name="email"
-                            type="email"
-                            placeholder="name@example.com"
-                            className={`w-full bg-white/5 border ${errors.email ? 'border-red-500' : 'border-white/10'} rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all`}
-                            onChange={handleChange}
-                        />
-                        {errors.email && <p className="mt-1 text-xs text-red-400">{errors.email}</p>}
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
-                        <input
-                            name="password"
-                            type="password"
-                            placeholder="••••••••"
-                            className={`w-full bg-white/5 border ${errors.password ? 'border-red-500' : 'border-white/10'} rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all`}
-                            onChange={handleChange}
-                        />
-                        {errors.password && <p className="mt-1 text-xs text-red-400">{errors.password}</p>}
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold py-3 rounded-lg shadow-lg shadow-blue-500/25 transform transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {loading ? "Initializing..." : "Join the Pulse"}
-                    </button>
-                </form>
-
-                <div className="mt-8 text-center">
-                    <p className="text-gray-400 text-sm">
-                        Already have an account?{' '}
-                        <Link to="/login" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">
-                            Sign in
-                        </Link>
+                    <form onSubmit={submit} className="space-y-4">
+                        <div>
+                            <label className="block text-[10px] font-bold text-[#707774] uppercase tracking-[0.2em] mb-2">Username</label>
+                            <input
+                                name="username"
+                                type="text"
+                                placeholder="johndoe"
+                                className={`w-full bg-[#F8F7F4] border ${errors.username ? 'border-red-500' : 'border-[#E8E4DF]'} rounded-2xl px-6 py-4 text-[#2C3330] outline-none focus:border-[#526D62] transition-all text-sm`}
+                                onChange={handleChange}
+                            />
+                            {errors.username && <p className="text-[10px] text-red-500 mt-1 font-bold italic">{errors.username}</p>}
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-[#707774] uppercase tracking-[0.2em] mb-2">Email Address</label>
+                            <input
+                                name="email"
+                                type="email"
+                                placeholder="name@example.com"
+                                className={`w-full bg-[#F8F7F4] border ${errors.email ? 'border-red-500' : 'border-[#E8E4DF]'} rounded-2xl px-6 py-4 text-[#2C3330] outline-none focus:border-[#526D62] transition-all text-sm`}
+                                onChange={handleChange}
+                            />
+                            {errors.email && <p className="text-[10px] text-red-500 mt-1 font-bold italic">{errors.email}</p>}
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-[#707774] uppercase tracking-[0.2em] mb-2">Password</label>
+                            <input
+                                name="password"
+                                type="password"
+                                placeholder="••••••••"
+                                className={`w-full bg-[#F8F7F4] border ${errors.password ? 'border-red-500' : 'border-[#E8E4DF]'} rounded-2xl px-6 py-4 text-[#2C3330] outline-none focus:border-[#526D62] transition-all text-sm`}
+                                onChange={handleChange}
+                            />
+                            {errors.password && <p className="text-[10px] text-red-500 mt-1 font-bold italic">{errors.password}</p>}
+                        </div>
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full bg-[#526D62] hover:bg-[#43594f] text-white font-bold py-4 rounded-2xl shadow-lg shadow-sage-900/10 transition-all active:scale-[0.98] disabled:opacity-50 mt-2 text-sm"
+                        >
+                            {loading ? "Creating..." : "Create Account"}
+                        </button>
+                    </form>
+                    <p className="mt-8 text-center text-xs text-[#707774]">
+                        Already a creator? <Link to="/login" className="text-[#2C3330] font-bold hover:underline">Sign in</Link>
                     </p>
                 </div>
             </div>
         </div>
     );
 };
-
 export default Register;

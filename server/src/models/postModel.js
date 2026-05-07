@@ -7,6 +7,17 @@ const postSchema = new mongoose.Schema({
         trim: true,
         maxlength: [500, "Keep it short! Max 500 characters"]
     },
+    title: {
+        type: String,
+        required: true
+    },
+    image: {
+        type: String,
+    },
+    category: {
+        type: String,
+        default: 'General'
+    },
     author: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
