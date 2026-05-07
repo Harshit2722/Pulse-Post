@@ -4,10 +4,13 @@ const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require("../utils/ApiError")
 
 const createPost = asyncHandler(async (req, res) => {
-    const { content } = req.body;
+    const { content, title, image, category } = req.body;
 
     let post = await Post.create({
         content,
+        title,
+        image,
+        category,
         author: req.user._id
     })
 
