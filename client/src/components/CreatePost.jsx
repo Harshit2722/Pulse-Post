@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { createPost } from '../utils/axios';
 import { toast } from 'react-hot-toast';
 const CreatePost = () => {
-    const [form, setForm] = useState({ content: '', title: '', category: 'General' });
+    const [form, setForm] = useState({ content: '', title: '', category: 'General', image: '' });
     const [loading, setLoading] = useState(false);
+    const [showImageInput, setShowImageInput] = useState(false);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!form.title.trim()) return toast.error("Please add a title");
@@ -12,7 +14,8 @@ const CreatePost = () => {
         setLoading(true);
         try {
             await createPost(form);
-            setForm({ content: '', title: '', category: 'General' });
+            setForm({ content: '', title: '', category: 'General', image: '' });
+            setShowImageInput(false);
             toast.success("Pulse broadcasted! ✨");
         } catch (err) {
             toast.error(err.response?.data?.message || "Failed to pulse");
@@ -20,6 +23,7 @@ const CreatePost = () => {
             setLoading(false);
         }
     };
+
     return (
         <div className="group relative">
             {/* SOFT HOVER GLOW */}
@@ -28,7 +32,7 @@ const CreatePost = () => {
             <form onSubmit={handleSubmit} className="relative bg-white rounded-[2.2rem] p-10 transition-all duration-300 border border-transparent focus-within:border-[#DAE2DF] shadow-sm hover:shadow-xl hover:shadow-sage-900/5">
                 
                 <div className="flex flex-col space-y-6">
-                    {/* TITLE & CATEGORY (Required by your model) */}
+                    {/* TITLE & CATEGORY */}
                     <div className="flex items-center justify-between border-b border-[#F1EFEA] pb-4">
                         <input 
                             type="text"
@@ -46,20 +50,41 @@ const CreatePost = () => {
                             <option value="Thought">Thought</option>
                             <option value="Update">Update</option>
                             <option value="Idea">Idea</option>
+                            <option value="Photography">Photography</option>
                         </select>
                     </div>
-                    {/* CONTENT AREA (Deep charcoal text for visibility) */}
+
+                    {/* CONTENT AREA */}
                     <textarea
                         className="w-full h-24 bg-transparent text-[#2C3330] text-lg leading-relaxed placeholder-[#707774]/40 outline-none resize-none"
                         placeholder="What's on your mind?"
                         value={form.content}
                         onChange={(e) => setForm({...form, content: e.target.value})}
                     />
+
+                    {/* IMAGE URL INPUT */}
+                    {showImageInput && (
+                        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                             <input 
+                                type="text"
+                                placeholder="Paste Image URL here (e.g. from Unsplash)..."
+                                className="w-full bg-[#F8F7F4] border border-[#E8E4DF] rounded-xl px-5 py-3 text-sm text-[#707774] outline-none focus:border-[#526D62]"
+                                value={form.image}
+                                onChange={(e) => setForm({...form, image: e.target.value})}
+                            />
+                        </div>
+                    )}
+
                     {/* BUTTONS */}
-                    <div className="flex justify-between items-center">
-                        <div className="flex space-x-5 opacity-40 hover:opacity-100 transition-opacity">
-                            <button type="button" className="text-xl grayscale hover:grayscale-0">🖼️</button>
-                            <button type="button" className="text-xl grayscale hover:grayscale-0">🏷️</button>
+                    <div className="flex justify-between items-center pt-2">
+                        <div className="flex space-x-5">
+                            <button 
+                                type="button" 
+                                onClick={() => setShowImageInput(!showImageInput)}
+                                className={`text-xl transition-all ${showImageInput ? 'scale-110' : 'grayscale opacity-40 hover:opacity-100'}`}
+                            >
+                                🖼️
+                            </button>
                         </div>
                         
                         <button

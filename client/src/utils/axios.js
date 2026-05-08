@@ -29,5 +29,11 @@ const deletePost = (id) => API.delete(`/posts/${id}`);
 const toggleLike = (id) => API.post(`/posts/${id}/like`);
 
 
-export {registerUser,loginUser,getCurrentUser,createPost,fetchPosts,deletePost,toggleLike}
+const updateAccount = (data) => API.patch('/users/update-account', data);
+
+const addComment = (id, content) => API.post(`/posts/${id}/comment`, { content });
+
+const incrementView = (id) => API.post(`/posts/${id}/view`);
+
+export { registerUser, loginUser, getCurrentUser, createPost, fetchPosts, deletePost, toggleLike, updateAccount, addComment, incrementView }
 export default API

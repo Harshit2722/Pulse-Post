@@ -14,14 +14,12 @@ const createPost = asyncHandler(async (req, res) => {
         author: req.user._id
     })
 
-    post = await post.populate("author", "username");
-
-
+    post = await post.populate("author", "name");
 
     // 🔥 REAL-TIME: Notify all connected clients
     const io = req.app.get("io");
     io.emit("new-post", {
-        message: `${req.user.username} posted a new pulse!`,
+        message: `${req.user.name} shared a new pulse!`,
         post
     });
     console.log("🚀 Socket emit: new-post")
@@ -33,7 +31,7 @@ const createPost = asyncHandler(async (req, res) => {
 
 const getAllPosts = asyncHandler(async (req, res) => {
     const posts = await Post.find()
-        .populate("author", "username")
+        .populate("author", "name")
         .sort({ createdAt: -1 })
         .limit(20)
         .lean();
@@ -93,7 +91,7 @@ const toggleLike = asyncHandler(async (req, res) => {
     io.emit("update-likes", {
         postId: id,
         likes: post.likes,
-        likerName: req.user.username,
+        likerName: req.user.name,
         isLikedNow: !isLiked
     });
 
@@ -103,5 +101,43 @@ const toggleLike = asyncHandler(async (req, res) => {
 });
 
 
-module.exports = { createPost, getAllPosts, deletePost, toggleLike };
+const addComment = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { content } = req.body;
+
+    if (!content) throw new ApiError(400, "Comment content is required");
+
+    const post = await Post.findById(id);
+    if (!post) throw new ApiError(404, "Post not found");
+
+    post.comments.push({
+        author: req.user._id,
+        content
+    });
+
+    await post.save();
+    
+    const updatedPost = await Post.findById(id).populate("comments.author", "name");
+
+    // 🔥 REAL-TIME: Notify everyone about the new reflection
+    const io = req.app.get("io");
+    io.emit("new-comment", {
+        postId: id,
+        comments: updatedPost.comments,
+        commenterName: req.user.name,
+        postAuthorId: post.author
+    });
+
+    return res.status(200).json(
+        new ApiResponse(200, updatedPost.comments, "Comment added")
+    );
+});
+
+const incrementViews = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    await Post.findByIdAndUpdate(id, { $inc: { views: 1 } });
+    return res.status(200).json(new ApiResponse(200, {}, "View counted"));
+});
+
+module.exports = { createPost, getAllPosts, deletePost, toggleLike, addComment, incrementViews };
 
