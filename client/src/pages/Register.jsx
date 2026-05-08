@@ -3,13 +3,13 @@ import { registerUser } from '../utils/axios';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 const Register = () => {
-    const [form, setForm] = useState({ username: '', email: '', password: '' });
+    const [form, setForm] = useState({ name: '', email: '', password: '' });
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const validate = () => {
         const newErrors = {};
-        if (!form.username.trim()) newErrors.username = "Username is required";
+        if (!form.name.trim()) newErrors.name = "Full Name is required";
         if (!form.email.includes("@")) newErrors.email = "Please enter a valid email";
         if (form.password.length < 6) newErrors.password = "Password must be 6+ characters";
         setErrors(newErrors);
@@ -63,15 +63,15 @@ const Register = () => {
                     </div>
                     <form onSubmit={submit} className="space-y-4">
                         <div>
-                            <label className="block text-[10px] font-bold text-[#707774] uppercase tracking-[0.2em] mb-2">Username</label>
+                            <label className="block text-[10px] font-bold text-[#707774] uppercase tracking-[0.2em] mb-2">Full Name</label>
                             <input
-                                name="username"
+                                name="name"
                                 type="text"
-                                placeholder="johndoe"
-                                className={`w-full bg-[#F8F7F4] border ${errors.username ? 'border-red-500' : 'border-[#E8E4DF]'} rounded-2xl px-6 py-4 text-[#2C3330] outline-none focus:border-[#526D62] transition-all text-sm`}
+                                placeholder="John Doe"
+                                className={`w-full bg-[#F8F7F4] border ${errors.name ? 'border-red-500' : 'border-[#E8E4DF]'} rounded-2xl px-6 py-4 text-[#2C3330] outline-none focus:border-[#526D62] transition-all text-sm`}
                                 onChange={handleChange}
                             />
-                            {errors.username && <p className="text-[10px] text-red-500 mt-1 font-bold italic">{errors.username}</p>}
+                            {errors.name && <p className="text-[10px] text-red-500 mt-1 font-bold italic">{errors.name}</p>}
                         </div>
                         <div>
                             <label className="block text-[10px] font-bold text-[#707774] uppercase tracking-[0.2em] mb-2">Email Address</label>

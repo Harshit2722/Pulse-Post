@@ -77,6 +77,13 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('MongoDB connected successfully!');
 
+    // Drop the obsolete username index if it exists
+    User.collection.dropIndex('username_1').catch(err => {
+      if (err.codeName !== 'IndexNotFound') {
+        console.error('Error dropping username index:', err);
+      }
+    });
+
     httpServer.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
       console.log("Socket.io ready for the Pulse! ")

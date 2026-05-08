@@ -4,22 +4,19 @@ const ApiResponse = require("../utils/ApiResponse");
 const User = require("../models/userModel");
 
 const registerUser = asyncHandler(async (req, res) => {
-    const { username, email, password } = req.body;
+    const { name, email, password } = req.body;
 
-    if(!username || !email || !password){
+    if(!name || !email || !password){
         throw new ApiError(400, "All fields are required");
     }
 
-    const existingUser = await User.findOne({ username });
-    if(existingUser){
-        throw new ApiError(400, "Username already exists");
-    }
+
     const existingUserEmail = await User.findOne({ email });
     if(existingUserEmail){
         throw new ApiError(400, "Email already exists");
     }
 
-    const user = await User.create({ username, email, password });
+    const user = await User.create({ name, email, password });
 
     const createdUser = await User.findById(user._id).select("-password");
 
@@ -37,7 +34,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-        throw new ApiError(404, "User does not exist");
+        throw new ApiError(401, "Invalid credentials");
     }
 
     const isPasswordValid = await user.isPasswordCorrect(password);
@@ -57,8 +54,24 @@ const loginUser = asyncHandler(async (req, res) => {
 const getCurrentUser = asyncHandler(async (req, res) => {
     return res.status(200).json(
         new ApiResponse(200, req.user, "User fetched successfully")
-    )
+    );
 });
 
-module.exports = { registerUser, loginUser, getCurrentUser };
+const updateAccount = asyncHandler(async (req, res) => {
+    const { name, password } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (name) user.name = name;
+    if (password) user.password = password;
+
+    await user.save();
+
+    const updatedUser = await User.findById(user._id).select("-password");
+
+    return res.status(200).json(
+        new ApiResponse(200, updatedUser, "Account updated successfully")
+    );
+});
+
+module.exports = { registerUser, loginUser, getCurrentUser, updateAccount };
 

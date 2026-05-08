@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const userSchema = new mongoose.Schema({
-    username: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true },
     avatar: { type: String }, 
@@ -28,7 +28,7 @@ userSchema.methods.generateAccessToken = function() {
         {
             _id: this._id,
             email: this.email,
-            username: this.username
+            name: this.name
         },
         process.env.JWT_SECRET,
         { expiresIn: "1d" } 
