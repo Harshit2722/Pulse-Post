@@ -139,8 +139,15 @@ const Dashboard = () => {
             {/* Sidebar Navigation */}
             <aside className="w-64 bg-[#F1EFEA] border-r border-[#E8E4DF] flex flex-col p-8 fixed h-full z-10">
                 <div className="mb-12">
-                    <h1 className="text-xl font-bold tracking-tighter text-[#2C3330]">PULSE-POST</h1>
-                    <p className="text-[10px] text-[#707774] uppercase tracking-widest font-bold mt-1">Creator Network</p>
+                    <div className="flex items-center space-x-3 text-[#2C3330]">
+                        <div className="flex items-center">
+                            <div className="w-2 h-2 bg-[#2C3330] rounded-full"></div>
+                            <div className="w-2 h-2 bg-[#2C3330] rounded-full -ml-1 mt-1.5"></div>
+                            <div className="w-2 h-2 bg-[#2C3330] rounded-full -ml-1"></div>
+                        </div>
+                        <h1 className="text-lg font-black tracking-tighter uppercase font-sans">PULSE-POST</h1>
+                    </div>
+                    <p className="text-[10px] text-[#707774] uppercase tracking-widest font-bold mt-1 ml-1">Creator Network</p>
                 </div>
 
                 <nav className="space-y-3 flex-1">
@@ -163,10 +170,23 @@ const Dashboard = () => {
             {/* Main Content Area */}
             <main className="ml-64 flex-1 flex flex-col">
 
-                <div className="px-12 py-12">
-                    <h2 className="text-4xl font-bold text-[#2C3330] tracking-tight">
-                        Welcome back, <span className="text-[#526D62] text-2xl font-light italic font-serif ">{user?.name.charAt(0).toUpperCase() + user?.name.slice(1)}</span>
-                    </h2>
+                <div className="px-12 py-12 border-b border-[#E8E4DF]">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-4xl font-bold text-[#2C3330] tracking-tight">
+                            Welcome back, <span className="text-[#526D62] italic font-serif ">{user?.name.charAt(0).toUpperCase() + user?.name.slice(1)}</span>
+                        </h2>
+                        {user?.avatar && (
+                            <div className="relative p-[3px] rounded-full bg-gradient-to-tr from-[#4285F4] via-[#EA4335] to-[#FBBC05] animate-gradient-x shadow-sm">
+                                <div className="p-[2px] bg-white rounded-full">
+                                    <img
+                                        src={user.avatar}
+                                        alt={user.name}
+                                        className="w-12 h-12 rounded-full object-cover"
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
                     <p className="text-[#707774] mt-1 text-lg">Your creator workspace is ready.</p>
                 </div>
 
@@ -188,7 +208,16 @@ const Dashboard = () => {
                                                     <span className="bg-[#DAE2DF] text-[#526D62] text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-tight">
                                                         {post.category}
                                                     </span>
-                                                    <span className="text-sm font-bold text-[#2C3330] italic font-serif lowercase">{post.author?.name}</span>
+                                                    <div className="flex items-center space-x-2">
+                                                        {post.author?.avatar ? (
+                                                            <img src={post.author.avatar} alt={post.author.name} className="w-6 h-6 rounded-full object-cover" />
+                                                        ) : (
+                                                            <div className="w-6 h-6 rounded-full bg-[#E6D5C3] flex items-center justify-center text-[10px] font-bold text-[#2C3330]">
+                                                                {post.author?.name?.charAt(0).toUpperCase()}
+                                                            </div>
+                                                        )}
+                                                        <span className="text-sm font-bold text-[#2C3330] italic font-serif lowercase">{post.author?.name}</span>
+                                                    </div>
                                                 </div>
                                                 <span className="text-[10px] text-[#707774] font-bold uppercase">
                                                     {new Date(post.createdAt).toLocaleDateString()}

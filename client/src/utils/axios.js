@@ -1,7 +1,7 @@
 import axios from "axios"
 
 const API = axios.create({
-    baseURL: "http://localhost:3001/api/v1",
+    baseURL: import.meta.env.VITE_API_URL || "http://localhost:3001/api/v1",
     withCredentials: true
 })
 
@@ -17,6 +17,7 @@ API.interceptors.request.use((config) => {
 
 const registerUser = (formData) => API.post('/users/register', formData);
 const loginUser = (formData) => API.post('/users/login', formData);
+const googleLogin = (idToken) => API.post('/users/google-login', { idToken });
 
 const getCurrentUser = ()=> API.get('/users/me')
 
@@ -35,5 +36,5 @@ const addComment = (id, content) => API.post(`/posts/${id}/comment`, { content }
 
 const incrementView = (id) => API.post(`/posts/${id}/view`);
 
-export { registerUser, loginUser, getCurrentUser, createPost, fetchPosts, deletePost, toggleLike, updateAccount, addComment, incrementView }
+export { registerUser, loginUser, getCurrentUser, createPost, fetchPosts, deletePost, toggleLike, updateAccount, addComment, incrementView, googleLogin }
 export default API
