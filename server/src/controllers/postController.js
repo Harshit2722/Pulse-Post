@@ -2,19 +2,38 @@ const Post = require('../models/postModel');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require("../utils/ApiError")
+const { uploadToCloudinary } = require('../utils/cloudinary');
 
 const createPost = asyncHandler(async (req, res) => {
-    const { content, title, image, category } = req.body;
+    const { content, title, category } = req.body;
+
+    if (!content || !title)
+        throw new ApiError(400, "Please provide content, title and category");
+
+    const localFilePath = req.file?.path;
+
+    let imageUrl = "";
+    
+    if(req.file){
+        const image = await uploadToCloudinary(localFilePath);
+        
+        if(image){
+            imageUrl = image.url;
+        }
+        else{
+            throw new ApiError(500, "Failed to upload image");
+        }
+    }
 
     let post = await Post.create({
         content,
         title,
-        image,
         category,
-        author: req.user._id
+        author: req.user._id,
+        image: imageUrl
     })
 
-    post = await post.populate("author", "name");
+    post = await post.populate("author", "name avatar");
 
     // 🔥 REAL-TIME: Notify all connected clients
     const io = req.app.get("io");
@@ -31,7 +50,7 @@ const createPost = asyncHandler(async (req, res) => {
 
 const getAllPosts = asyncHandler(async (req, res) => {
     const posts = await Post.find()
-        .populate("author", "name")
+        .populate("author", "name avatar")
         .sort({ createdAt: -1 })
         .limit(20)
         .lean();
@@ -117,7 +136,7 @@ const addComment = asyncHandler(async (req, res) => {
 
     await post.save();
     
-    const updatedPost = await Post.findById(id).populate("comments.author", "name");
+    const updatedPost = await Post.findById(id).populate("comments.author", "name avatar");
 
     // 🔥 REAL-TIME: Notify everyone about the new reflection
     const io = req.app.get("io");

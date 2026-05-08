@@ -29,6 +29,10 @@ const postSchema = new mongoose.Schema({
             ref: 'User'
         }
     ],
+    image: {
+        type: String,
+        default: ""
+    },
     views: {
         type: Number,
         default: 0

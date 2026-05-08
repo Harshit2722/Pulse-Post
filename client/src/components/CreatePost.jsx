@@ -1,26 +1,48 @@
 import React, { useState } from 'react';
 import { createPost } from '../utils/axios';
 import { toast } from 'react-hot-toast';
+
 const CreatePost = () => {
     const [form, setForm] = useState({ content: '', title: '', category: 'General', image: '' });
     const [loading, setLoading] = useState(false);
-    const [showImageInput, setShowImageInput] = useState(false);
+    const [image, setImage] = useState(null);
+    const [preview, setPreview] = useState(null);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!form.title.trim()) return toast.error("Please add a title");
         if (!form.content.trim()) return toast.error("Pulse cannot be empty");
+
+        const formData = new FormData();
+        formData.append("title", form.title);
+        formData.append("content", form.content);
+        formData.append("category", form.category);
+        if (image) formData.append("image", image);
         
         setLoading(true);
         try {
-            await createPost(form);
+            await createPost(formData);
             setForm({ content: '', title: '', category: 'General', image: '' });
-            setShowImageInput(false);
+            setImage(null);
+            setPreview(null);
             toast.success("Pulse broadcasted! ✨");
         } catch (err) {
             toast.error(err.response?.data?.message || "Failed to pulse");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        try {
+            if (file) {
+                setImage(file);
+                setPreview(URL.createObjectURL(file));
+            }
+        }
+        catch(error){
+            toast.error(error.response?.data?.message || "Error previewing image");
         }
     };
 
@@ -62,29 +84,42 @@ const CreatePost = () => {
                         onChange={(e) => setForm({...form, content: e.target.value})}
                     />
 
-                    {/* IMAGE URL INPUT */}
-                    {showImageInput && (
-                        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                             <input 
-                                type="text"
-                                placeholder="Paste Image URL here (e.g. from Unsplash)..."
-                                className="w-full bg-[#F8F7F4] border border-[#E8E4DF] rounded-xl px-5 py-3 text-sm text-[#707774] outline-none focus:border-[#526D62]"
-                                value={form.image}
-                                onChange={(e) => setForm({...form, image: e.target.value})}
-                            />
+                    {/* IMAGE PREVIEW */}
+                    {preview && (
+                        <div className="relative animate-in fade-in zoom-in-95 duration-300">
+                            <div className="relative rounded-2xl overflow-hidden border border-[#E8E4DF] group/preview">
+                                <img src={preview} alt="Preview" className="w-full h-64 object-cover" />
+                                <button 
+                                    type="button"
+                                    onClick={() => { setImage(null); setPreview(null); }}
+                                    className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white w-8 h-8 rounded-full flex items-center justify-center transition-all"
+                                >
+                                    ✕
+                                </button>
+                            </div>
                         </div>
                     )}
 
-                    {/* BUTTONS */}
+                    {/* ACTIONS & BUTTONS */}
                     <div className="flex justify-between items-center pt-2">
-                        <div className="flex space-x-5">
-                            <button 
-                                type="button" 
-                                onClick={() => setShowImageInput(!showImageInput)}
-                                className={`text-xl transition-all ${showImageInput ? 'scale-110' : 'grayscale opacity-40 hover:opacity-100'}`}
+                        <div className="flex items-center space-x-2">
+                            {/* Hidden File Input */}
+                            <input 
+                                type="file" 
+                                id="post-image" 
+                                className="hidden" 
+                                accept="image/*" 
+                                onChange={handleImageChange} 
+                            />
+                            
+                            {/* Trigger Label */}
+                            <label 
+                                htmlFor="post-image" 
+                                className="cursor-pointer flex items-center space-x-2 px-4 py-2 rounded-xl bg-[#F8F7F4] hover:bg-[#E6D5C3] text-[#707774] transition-all group/icon"
                             >
-                                🖼️
-                            </button>
+                                <span className="text-lg group-hover/icon:scale-110 transition-transform">🖼️</span>
+                                <span className="text-[10px] font-bold uppercase tracking-widest">Add Media</span>
+                            </label>
                         </div>
                         
                         <button
@@ -92,7 +127,7 @@ const CreatePost = () => {
                             disabled={loading}
                             className="bg-[#526D62] text-white px-10 py-4 rounded-2xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-sage-900/10 hover:bg-[#43594f] active:scale-95 transition-all disabled:opacity-50"
                         >
-                            {loading ? "Pulsing..." : "Broadcast"}
+                            {loading ? "Broadcasting..." : "Broadcast"}
                         </button>
                     </div>
                 </div>
@@ -100,4 +135,5 @@ const CreatePost = () => {
         </div>
     );
 };
+
 export default CreatePost;

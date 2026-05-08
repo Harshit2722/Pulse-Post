@@ -36,5 +36,7 @@ const addComment = (id, content) => API.post(`/posts/${id}/comment`, { content }
 
 const incrementView = (id) => API.post(`/posts/${id}/view`);
 
-export { registerUser, loginUser, getCurrentUser, createPost, fetchPosts, deletePost, toggleLike, updateAccount, addComment, incrementView, googleLogin }
+const updateAvatar = (formData) => API.patch('/users/update-avatar', formData);
+
+export { registerUser, loginUser, getCurrentUser, createPost, fetchPosts, deletePost, toggleLike, updateAccount, addComment, incrementView, googleLogin, updateAvatar }
 export default API

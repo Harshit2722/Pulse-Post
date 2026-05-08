@@ -1,18 +1,17 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { fetchPosts, deletePost, toggleLike, addComment, incrementView, updateAccount } from '../utils/axios';
+import { fetchPosts, deletePost, toggleLike, addComment, incrementView, updateAccount, updateAvatar } from '../utils/axios';
 import CreatePost from '../components/CreatePost';
 import { toast } from 'react-hot-toast';
+
 const Dashboard = () => {
-    const { user, socket, logout } = useAuth();
+    const { user, socket, logout, login } = useAuth();
     const [posts, setPosts] = useState([]);
-    // --- YOUR EXACT LOGIC (UNTOUCHED) ---
     const [expandedComments, setExpandedComments] = useState(null);
     const [commentText, setCommentText] = useState("");
     const [activeTab, setActiveTab] = useState('Feed');
     const [settingsForm, setSettingsForm] = useState({ name: user?.name || '', password: '' });
     const [updating, setUpdating] = useState(false);
-    const { login } = useAuth();
 
     const hasFetched = useRef(false);
 
@@ -24,7 +23,6 @@ const Dashboard = () => {
             try {
                 const { data } = await fetchPosts();
                 setPosts(data.data);
-                // Increment views for all loaded posts once
                 data.data.forEach(p => incrementView(p._id).catch(() => { }));
             } catch (err) {
                 toast.error("Failed to load feed");
@@ -38,7 +36,6 @@ const Dashboard = () => {
         setUpdating(true);
         try {
             const { data } = await updateAccount(settingsForm);
-            // Use login from context to refresh local user state
             login(data.data, localStorage.getItem("token"));
             toast.success("Profile updated! ✨");
             setSettingsForm(prev => ({ ...prev, password: '' }));
@@ -46,6 +43,23 @@ const Dashboard = () => {
             toast.error(err.response?.data?.message || "Update failed");
         } finally {
             setUpdating(false);
+        }
+    };
+
+    const handleAvatarChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append("avatar", file);
+
+        const toastId = toast.loading("Updating avatar...");
+        try {
+            const { data } = await updateAvatar(formData);
+            login(data.data, localStorage.getItem("token"));
+            toast.success("Avatar updated! ✨", { id: toastId });
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Failed to update avatar", { id: toastId });
         }
     };
 
@@ -89,7 +103,7 @@ const Dashboard = () => {
         socket.on("update-likes", (data) => {
             setPosts(prev => {
                 const post = prev.find(p => p._id === data.postId);
-                if (data.isLikedNow && post?.author?._id === user?._id && data.likerName !== user?.username) {
+                if (data.isLikedNow && post?.author?._id === user?._id && data.likerName !== user?.name) {
                     toast(`${data.likerName} loved your pulse!`, { icon: '❤️', id: `like-${data.postId}` });
                 }
                 return prev.map(p =>
@@ -190,7 +204,7 @@ const Dashboard = () => {
                     <p className="text-[#707774] mt-1 text-lg">Your creator workspace is ready.</p>
                 </div>
 
-                <div className="px-12 grid grid-cols-12 gap-8 pb-20">
+                <div className="px-12 grid grid-cols-12 gap-8 pb-20 mt-10">
 
                     {activeTab === 'Feed' ? (
                         <>
@@ -257,7 +271,6 @@ const Dashboard = () => {
                                                 )}
                                             </div>
 
-                                            {/* EXPANDABLE COMMENT SECTION */}
                                             {expandedComments === post._id && (
                                                 <div className="mt-8 pt-8 border-t border-[#F1EFEA] animate-in slide-in-from-top-4 duration-300">
                                                     <div className="space-y-6 mb-8 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
@@ -310,6 +323,39 @@ const Dashboard = () => {
                         /* SETTINGS VIEW */
                         <div className="col-span-8 bg-white rounded-[2.5rem] p-12 border border-[#E8E4DF] shadow-sm">
                             <h3 className="text-3xl font-bold text-[#2C3330] mb-8 tracking-tighter">Account Settings</h3>
+                            
+                            {/* 📸 AVATAR SECTION */}
+                            <div className="flex items-center space-x-6 mb-10">
+                                <div className="relative group">
+                                    <div className="relative p-[3px] rounded-full bg-gradient-to-tr from-[#4285F4] via-[#EA4335] to-[#FBBC05] shadow-sm">
+                                        <div className="p-[2px] bg-white rounded-full">
+                                            <img 
+                                                src={user?.avatar} 
+                                                alt="Profile" 
+                                                className="w-24 h-24 rounded-full border-4 border-white shadow-lg object-cover" 
+                                            />
+                                        </div>
+                                    </div>
+                                    <label 
+                                        htmlFor="avatar-upload" 
+                                        className="absolute inset-0 flex items-center justify-center bg-black/40 text-white rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-all text-[10px] font-bold uppercase tracking-widest"
+                                    >
+                                        Change
+                                    </label>
+                                    <input 
+                                        type="file" 
+                                        id="avatar-upload" 
+                                        className="hidden" 
+                                        accept="image/*" 
+                                        onChange={handleAvatarChange} 
+                                    />
+                                </div>
+                                <div>
+                                    <h4 className="text-xl font-bold text-[#2C3330]">{user?.name}</h4>
+                                    <p className="text-[#707774] text-sm">{user?.email}</p>
+                                </div>
+                            </div>
+
                             <form onSubmit={handleUpdateSettings} className="max-w-md space-y-6">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-[#707774] uppercase tracking-[0.2em] ml-1">Display Name</label>
@@ -345,4 +391,5 @@ const Dashboard = () => {
         </div>
     );
 };
+
 export default Dashboard;
