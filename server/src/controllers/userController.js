@@ -6,6 +6,7 @@ const { OAuth2Client } = require('google-auth-library');
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const {uploadToCloudinary} = require("../utils/cloudinary");
 const { sendOTP } = require("../utils/emailService");
+const Post = require("../models/postModel");
 
 const registerUser = asyncHandler(async (req, res) => {
     const { name, email, password } = req.body;
@@ -232,8 +233,21 @@ const updateAvatar = asyncHandler(async (req,res)=>{
     return res.status(200).json(
         new ApiResponse(200, user, "Avatar updated successfully")
     );
-    
-})
+});
+
+const removeAvatar = asyncHandler(async (req, res) => {
+    const user = await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set: { avatar: "" }
+        },
+        { new: true }
+    ).select("-password");
+
+    return res.status(200).json(
+        new ApiResponse(200, user, "Avatar removed successfully")
+    );
+});
 
 const toggleSavePost = asyncHandler(async (req, res) => {
     const { postId } = req.params;
@@ -255,14 +269,39 @@ const toggleSavePost = asyncHandler(async (req, res) => {
 });
 
 const getSavedPosts = asyncHandler(async (req, res) => {
-    const user = await User.findById(req.user._id).populate({
-        path: 'savedPosts',
-        populate: { path: 'author', select: 'name avatar' }
-    });
+    const { cursor, limit = 8 } = req.query;
+    const fetchLimit = Number(limit);
+    const user = await User.findById(req.user._id);
+
+    // Get the array of IDs and reverse it to show newest saves first
+    let savedIds = [...user.savedPosts].reverse();
+    
+    if (cursor) {
+        const cursorIndex = savedIds.findIndex(id => id.toString() === cursor);
+        if (cursorIndex !== -1) {
+            savedIds = savedIds.slice(cursorIndex + 1);
+        }
+    }
+
+    const paginatedIds = savedIds.slice(0, fetchLimit + 1); // Slice one extra
+
+    // Fetch the actual posts
+    const posts = await Post.find({ _id: { $in: paginatedIds } })
+        .populate("author", "name avatar")
+        .lean();
+
+    // Preserve the sorted order based on when they were saved
+    const orderedPosts = paginatedIds.map(id => posts.find(p => p._id.toString() === id.toString())).filter(Boolean);
+
+    let nextCursor = null;
+    if (orderedPosts.length > fetchLimit) {
+        nextCursor = orderedPosts[fetchLimit - 1]._id;
+        orderedPosts.pop(); // Remove the extra item
+    }
 
     return res.status(200).json(
-        new ApiResponse(200, user.savedPosts, "Saved pulses fetched")
+        new ApiResponse(200, { posts: orderedPosts, nextCursor }, "Saved pulses fetched")
     );
 });
 
-module.exports = { registerUser, verifyOtp, resendOtp, loginUser, googleLogin, getCurrentUser, updateAccount, updateAvatar, toggleSavePost, getSavedPosts };
+module.exports = { registerUser, verifyOtp, resendOtp, loginUser, googleLogin, getCurrentUser, updateAccount, updateAvatar, removeAvatar, toggleSavePost, getSavedPosts };

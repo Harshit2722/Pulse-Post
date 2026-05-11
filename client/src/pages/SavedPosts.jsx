@@ -1,21 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchSavedPulses, toggleLike } from '../utils/axios';
+import { fetchSavedPulses, savePulse } from '../utils/axios';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import NotificationTray from '../components/NotificationTray';
+import Avatar from '../components/Avatar';
 
 const SavedPosts = () => {
     const [savedPulses, setSavedPulses] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [cursorHistory, setCursorHistory] = useState([null]);
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [nextCursor, setNextCursor] = useState(null);
     const navigate = useNavigate();
     const { user, logout } = useAuth();
 
     useEffect(() => {
         const loadSaved = async () => {
             try {
-                const { data } = await fetchSavedPulses();
-                setSavedPulses(data.data);
+                setLoading(true);
+                const currentCursor = cursorHistory[currentIndex];
+                const { data } = await fetchSavedPulses(currentCursor);
+                setSavedPulses(data.data.posts);
+                setNextCursor(data.data.nextCursor);
             } catch (err) {
                 toast.error("Failed to load your library");
             } finally {
@@ -23,17 +30,34 @@ const SavedPosts = () => {
             }
         };
         loadSaved();
-    }, []);
+    }, [currentIndex]);
 
-    const handleHeart = async (id, e) => {
+    const handleNext = () => {
+        if (nextCursor) {
+            setCursorHistory(prev => {
+                const newHistory = [...prev];
+                newHistory[currentIndex + 1] = nextCursor;
+                return newHistory;
+            });
+            setCurrentIndex(prev => prev + 1);
+        }
+    };
+
+    const handlePrev = () => {
+        if (currentIndex > 0) {
+            setCurrentIndex(prev => prev - 1);
+        }
+    };
+
+    const handleRemoveSaved = async (id, e) => {
         e.stopPropagation();
+        if (!window.confirm("Remove this pulse from your library?")) return;
         try {
-            const { data } = await toggleLike(id);
-            setSavedPulses(prev => prev.map(p => 
-                p._id === id ? { ...p, likes: data.data.likes } : p
-            ));
+            await savePulse(id);
+            setSavedPulses(prev => prev.filter(p => p._id !== id));
+            toast.success("Removed from library");
         } catch (err) {
-            toast.error("Failed to heart pulse");
+            toast.error("Failed to remove pulse");
         }
     };
 
@@ -86,7 +110,7 @@ const SavedPosts = () => {
                         </div>
                         <div className="flex items-center space-x-6">
                             <NotificationTray />
-                            <img src={user?.avatar} className="w-12 h-12 rounded-full border-2 border-[#E8E4DF] object-cover" />
+                            <Avatar src={user?.avatar} name={user?.name} className="w-12 h-12 rounded-full border-2 border-[#E8E4DF] object-cover" />
                         </div>
                     </div>
                 </div>
@@ -98,52 +122,86 @@ const SavedPosts = () => {
                         </div>
                     ) : savedPulses.length === 0 ? (
                         <div className="text-center py-20 bg-white rounded-[3rem] border border-dashed border-[#E8E4DF]">
-                            <p className="text-[#707774] font-medium italic">Your library is empty. Discover pulses and save them here.</p>
-                            <button 
-                                onClick={() => navigate('/dashboard')}
-                                className="mt-6 px-8 py-3 bg-[#526D62] text-white rounded-full text-sm font-bold uppercase tracking-widest hover:bg-[#43594f] transition-all"
-                            >
-                                Browse Feed
-                            </button>
+                            <p className="text-[#707774] font-medium italic">
+                                {currentIndex > 0 ? "No more saved posts here." : "Your library is empty. Discover pulses and save them here."}
+                            </p>
+                            {currentIndex === 0 && (
+                                <button 
+                                    onClick={() => navigate('/dashboard')}
+                                    className="mt-6 px-8 py-3 bg-[#526D62] text-white rounded-full text-sm font-bold uppercase tracking-widest hover:bg-[#43594f] transition-all"
+                                >
+                                    Browse Feed
+                                </button>
+                            )}
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                            {savedPulses.map((pulse) => (
-                                <div 
-                                    key={pulse._id}
-                                    onClick={() => navigate(`/post/${pulse._id}`)}
-                                    className="bg-white rounded-[2.5rem] overflow-hidden border border-[#E8E4DF] hover:shadow-2xl transition-all group cursor-pointer"
-                                >
-                                    <div className="h-48 overflow-hidden relative">
-                                        <img src={pulse.image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                                        <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest text-[#526D62]">
-                                            {pulse.category}
-                                        </div>
-                                    </div>
-                                    <div className="p-8">
-                                        <h3 className="text-xl font-bold mb-3 group-hover:text-[#526D62] transition-colors line-clamp-1">{pulse.title}</h3>
-                                        <p className="text-[#707774] text-sm line-clamp-2 mb-6 leading-relaxed">{pulse.content}</p>
+                        <div className="space-y-12">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                                {savedPulses.map((pulse) => (
+                                    <div 
+                                        key={pulse._id}
+                                        onClick={() => navigate(`/post/${pulse._id}`)}
+                                        className="group aspect-square relative rounded-[2.5rem] overflow-hidden border border-[#E8E4DF] shadow-sm hover:shadow-2xl transition-all duration-700 cursor-pointer"
+                                    >
+                                        <img 
+                                            src={pulse.image || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&q=80&w=1000'} 
+                                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                                            alt={pulse.title} 
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-100 transition-opacity duration-500"></div>
                                         
-                                        <div className="flex items-center justify-between pt-6 border-t border-[#F1EFEA]">
-                                            <div className="flex items-center space-x-3">
-                                                <img src={pulse.author?.avatar} className="w-6 h-6 rounded-full" />
-                                                <span className="text-[10px] font-bold uppercase tracking-widest text-[#2C3330]">{pulse.author?.name}</span>
-                                            </div>
-                                            <div className="flex items-center space-x-4">
-                                                <button 
-                                                    onClick={(e) => handleHeart(pulse._id, e)}
-                                                    className={`flex items-center space-x-1.5 ${pulse.likes?.includes(user?._id) ? 'text-[#EA4335]' : 'text-[#707774] hover:text-[#EA4335]'}`}
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill={pulse.likes?.includes(user?._id) ? "currentColor" : "none"} viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-                                                    </svg>
-                                                    <span className="text-[10px] font-bold">{pulse.likes?.length || 0}</span>
-                                                </button>
+                                        <button 
+                                            onClick={(e) => handleRemoveSaved(pulse._id, e)}
+                                            className="absolute top-6 right-6 bg-red-500/80 backdrop-blur-sm p-2.5 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-red-600 shadow-lg z-10"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18M17.25 17.25A2.25 2.25 0 0 1 15 19.5H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                            </svg>
+                                        </button>
+
+                                        <div className="absolute inset-0 p-8 flex flex-col justify-end z-0">
+                                            <div className="translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                                                <div className="flex items-center space-x-2 mb-3">
+                                                    <span className="bg-white/20 backdrop-blur-md text-white text-[8px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">
+                                                        {pulse.category}
+                                                    </span>
+                                                </div>
+                                                <h4 className="text-white text-lg font-bold leading-tight line-clamp-2">
+                                                    {pulse.title}
+                                                </h4>
+                                                <div className="flex items-center justify-between mt-4">
+                                                    <div className="flex items-center space-x-2">
+                                                        <Avatar src={pulse.author?.avatar} name={pulse.author?.name} className="w-5 h-5 rounded-full object-cover" />
+                                                        <span className="text-white/60 text-[10px] font-bold uppercase tracking-widest">{pulse.author?.name}</span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
                             ))}
+                            </div>
+
+                            {(currentIndex > 0 || nextCursor) && (
+                                <div className="flex items-center justify-center space-x-6 pt-8 border-t border-[#E8E4DF]">
+                                    <button 
+                                        onClick={handlePrev}
+                                        disabled={currentIndex === 0}
+                                        className="px-6 py-3 rounded-2xl border border-[#E8E4DF] text-xs font-bold uppercase tracking-widest text-[#2C3330] hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm"
+                                    >
+                                        Previous
+                                    </button>
+                                    <span className="text-xs font-bold text-[#707774] uppercase tracking-widest">
+                                        Page {currentIndex + 1}
+                                    </span>
+                                    <button 
+                                        onClick={handleNext}
+                                        disabled={!nextCursor}
+                                        className="px-6 py-3 rounded-2xl border border-[#E8E4DF] text-xs font-bold uppercase tracking-widest text-[#2C3330] hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
