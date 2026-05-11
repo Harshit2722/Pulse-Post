@@ -94,7 +94,7 @@ const MyPulses = () => {
                         <span className="text-sm font-bold">Dashboard</span>
                     </button>
                     <button className="flex items-center space-x-3 w-full px-5 py-3 rounded-2xl bg-[#526D62] text-white shadow-lg transition-all">
-                        <span className="text-sm font-bold">My Pulses</span>
+                        <span className="text-sm font-bold">Your Pulses</span>
                     </button>
                     <button onClick={() => navigate('/dashboard', { state: { activeTab: 'Explore' } })} className="flex items-center space-x-3 w-full px-5 py-3 rounded-2xl text-[#707774] hover:bg-white/50 transition-all">
                         <span className="text-sm font-bold">Explore</span>
@@ -117,8 +117,8 @@ const MyPulses = () => {
                 <div className="px-12 py-12 border-b border-[#E8E4DF]">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h2 className="text-4xl font-bold text-[#2C3330] tracking-tight">My Pulses</h2>
-                            <p className="text-[#707774] mt-1 text-lg">Every story you've broadcasted to the network.</p>
+                            <h2 className="text-4xl font-bold text-[#2C3330] tracking-tight">Your Pulses</h2>
+                            <p className="text-[#707774] mt-1 text-lg">Every story you've shared on the network.</p>
                         </div>
                         <div className="flex items-center space-x-6">
                             <NotificationTray />

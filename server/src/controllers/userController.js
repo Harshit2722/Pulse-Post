@@ -185,11 +185,12 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 });
 
 const updateAccount = asyncHandler(async (req, res) => {
-    const { name, password } = req.body;
+    const { name, password, tagline } = req.body;
     const user = await User.findById(req.user._id);
 
     if (name) user.name = name;
     if (password) user.password = password;
+    if (tagline !== undefined) user.tagline = tagline;
 
     await user.save();
     const updatedUser = await User.findById(user._id).select("-password");
@@ -287,7 +288,7 @@ const getSavedPosts = asyncHandler(async (req, res) => {
 
     // Fetch the actual posts
     const posts = await Post.find({ _id: { $in: paginatedIds } })
-        .populate("author", "name avatar")
+        .populate("author", "name avatar tagline")
         .lean();
 
     // Preserve the sorted order based on when they were saved

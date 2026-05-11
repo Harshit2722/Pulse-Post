@@ -12,7 +12,7 @@ const Dashboard = () => {
     const location = useLocation();
     const [posts, setPosts] = useState([]);
     const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'Feed');
-    const [settingsForm, setSettingsForm] = useState({ name: user?.name || '', password: '' });
+    const [settingsForm, setSettingsForm] = useState({ name: user?.name || '', tagline: user?.tagline || '', password: '' });
     const [updating, setUpdating] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [cursorHistory, setCursorHistory] = useState([null]);
@@ -204,7 +204,7 @@ const Dashboard = () => {
                         onClick={() => navigate('/my-pulses')}
                         className={`flex items-center space-x-3 w-full px-5 py-3 rounded-2xl transition-all ${window.location.pathname === '/my-pulses' ? 'bg-[#526D62] text-white shadow-lg' : 'text-[#707774] hover:bg-white/50'}`}
                     >
-                        <span className="text-sm font-bold">My Pulses</span>
+                        <span className="text-sm font-bold">Your Pulses</span>
                     </button>
                     <button
                         onClick={() => {
@@ -419,6 +419,16 @@ const Dashboard = () => {
                                         className="w-full bg-[#F8F7F4] border border-[#E8E4DF] rounded-2xl px-6 py-4 text-[#2C3330] outline-none focus:border-[#526D62] transition-all"
                                         value={settingsForm.name}
                                         onChange={(e) => setSettingsForm({ ...settingsForm, name: e.target.value })}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-[#707774] uppercase tracking-[0.2em] ml-1">Creator Tagline</label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. Minimalist Creator, Tech Enthusiast"
+                                        className="w-full bg-[#F8F7F4] border border-[#E8E4DF] rounded-2xl px-6 py-4 text-[#2C3330] outline-none focus:border-[#526D62] transition-all"
+                                        value={settingsForm.tagline}
+                                        onChange={(e) => setSettingsForm({ ...settingsForm, tagline: e.target.value })}
                                     />
                                 </div>
                                 <div className="space-y-2">

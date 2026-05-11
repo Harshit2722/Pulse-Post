@@ -11,7 +11,8 @@ const userSchema = new mongoose.Schema({
     savedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
     otp: { type: String },
     otpExpires: { type: Date },
-    isVerified: { type: Boolean, default: false }
+    isVerified: { type: Boolean, default: false },
+    tagline: { type: String, trim: true, default: "Creator" }
 }, { timestamps: true });
 
 // Hash password before saving
