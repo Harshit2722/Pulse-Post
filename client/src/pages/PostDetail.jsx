@@ -4,6 +4,7 @@ import { fetchPostById, toggleLike, addComment, deleteComment, editPost, savePul
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import NotificationTray from '../components/NotificationTray';
+import Avatar from '../components/Avatar';
 
 const PostDetail = () => {
     const { id } = useParams();
@@ -13,6 +14,8 @@ const PostDetail = () => {
     const [loading, setLoading] = useState(true);
     const [commentText, setCommentText] = useState("");
     const [showAllComments, setShowAllComments] = useState(false);
+    const [commentPage, setCommentPage] = useState(1);
+    const commentsPerPage = 5;
     
     // Edit States
     const [isEditing, setIsEditing] = useState(false);
@@ -148,8 +151,15 @@ const PostDetail = () => {
         </div>
     );
 
-    const displayedComments = showAllComments ? post.comments : post.comments?.slice(0, 2);
+    const displayedComments = post.comments?.slice(0, 2);
     const isSaved = user?.savedPosts?.includes(id);
+
+    // Pagination Logic for Modal
+    const totalPages = Math.ceil((post.comments?.length || 0) / commentsPerPage);
+    const paginatedComments = post.comments?.slice(
+        (commentPage - 1) * commentsPerPage, 
+        commentPage * commentsPerPage
+    );
 
     return (
         <div className="min-h-screen bg-[#F8F7F4] font-['Instrument_Sans'] text-[#2C3330] selection:bg-[#526D62] selection:text-white">
@@ -183,7 +193,7 @@ const PostDetail = () => {
                         </button>
                     )}
                     <NotificationTray />
-                    <img src={user?.avatar} className="w-10 h-10 rounded-full border-2 border-[#E8E4DF] object-cover cursor-pointer hover:border-[#526D62] transition-all" />
+                    <Avatar src={user?.avatar} name={user?.name} className="w-10 h-10 rounded-full border-2 border-[#E8E4DF] object-cover cursor-pointer hover:border-[#526D62] transition-all" />
                 </div>
             </nav>
 
@@ -266,10 +276,13 @@ const PostDetail = () => {
                             </h3>
                             {post.comments?.length > 2 && (
                                 <button 
-                                    onClick={() => setShowAllComments(!showAllComments)}
+                                    onClick={() => {
+                                        setShowAllComments(true);
+                                        setCommentPage(1);
+                                    }}
                                     className="text-xs font-bold uppercase tracking-widest text-[#526D62] hover:underline transition-all"
                                 >
-                                    {showAllComments ? "Show Less" : "View All"}
+                                    View All
                                 </button>
                             )}
                         </div>
@@ -279,7 +292,7 @@ const PostDetail = () => {
                                 <div key={idx} className="p-8 rounded-3xl bg-white border border-[#E8E4DF] shadow-sm hover:shadow-md transition-all group">
                                     <div className="flex items-center justify-between mb-4">
                                         <div className="flex items-center space-x-4">
-                                            <img src={comment.author?.avatar} className="w-10 h-10 rounded-full object-cover border border-[#E8E4DF]" />
+                                            <Avatar src={comment.author?.avatar} name={comment.author?.name} className="w-10 h-10 rounded-full object-cover border border-[#E8E4DF]" />
                                             <div>
                                                 <h4 className="text-sm font-bold">{comment.author?.name}</h4>
                                                 <p className="text-[10px] text-[#707774] uppercase tracking-widest font-bold">Just now</p>
@@ -303,7 +316,7 @@ const PostDetail = () => {
 
                         <div className="bg-white rounded-[2rem] p-4 shadow-sm border border-[#E8E4DF]">
                             <form onSubmit={handleComment} className="flex items-center space-x-4">
-                                <img src={user?.avatar} className="w-10 h-10 rounded-full object-cover border border-[#E8E4DF]" />
+                                <Avatar src={user?.avatar} name={user?.name} className="w-10 h-10 rounded-full object-cover border border-[#E8E4DF]" />
                                 <input 
                                     placeholder="Share your reflection..." 
                                     className="flex-1 bg-transparent border-none outline-none text-sm placeholder-[#707774]/50"
@@ -324,7 +337,7 @@ const PostDetail = () => {
                     {/* Author Card */}
                     <div className="bg-[#F1EFEA]/50 rounded-[3rem] p-10 border border-[#E8E4DF] flex flex-col items-center text-center group transition-all hover:bg-white hover:shadow-xl">
                         <div className="relative mb-6">
-                            <img src={post.author?.avatar} className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg" />
+                            <Avatar src={post.author?.avatar} name={post.author?.name} className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg" />
                             <div className="absolute bottom-1 right-1 w-6 h-6 bg-[#526D62] rounded-full border-2 border-white flex items-center justify-center">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="white" className="w-3 h-3">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
@@ -385,6 +398,78 @@ const PostDetail = () => {
                     </div>
                 </aside>
             </main>
+
+            {/* Comments Modal with Pagination */}
+            {showAllComments && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#2C3330]/40 backdrop-blur-sm animate-[fadeIn_0.3s_ease-out]">
+                    <div className="bg-[#F8F7F4] w-full max-w-2xl max-h-[85vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden border border-[#E8E4DF] animate-[modalPop_0.4s_cubic-bezier(0.16,1,0.3,1)]">
+                        <div className="p-8 border-b border-[#E8E4DF] flex items-center justify-between bg-white shrink-0">
+                            <h3 className="text-2xl font-bold tracking-tighter">
+                                All Reflections <span className="text-[#707774] font-normal ml-2">({post.comments?.length})</span>
+                            </h3>
+                            <button 
+                                onClick={() => setShowAllComments(false)}
+                                className="w-10 h-10 bg-[#F1EFEA] hover:bg-[#E8E4DF] rounded-full flex items-center justify-center transition-colors text-[#2C3330]"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto p-8 space-y-6">
+                            {paginatedComments?.map((comment, idx) => (
+                                <div key={idx} className="p-6 rounded-3xl bg-white border border-[#E8E4DF] shadow-sm group">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center space-x-4">
+                                            <Avatar src={comment.author?.avatar} name={comment.author?.name} className="w-10 h-10 rounded-full object-cover border border-[#E8E4DF]" />
+                                            <div>
+                                                <h4 className="text-sm font-bold">{comment.author?.name}</h4>
+                                                <p className="text-[10px] text-[#707774] uppercase tracking-widest font-bold">
+                                                    {new Date(comment.createdAt).toLocaleDateString()}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {comment.author?._id === user?._id && (
+                                            <button 
+                                                onClick={() => handleDeleteComment(comment._id)}
+                                                className="opacity-0 group-hover:opacity-100 p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-all"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                                </svg>
+                                            </button>
+                                        )}
+                                    </div>
+                                    <p className="text-[#2C3330]/90 leading-relaxed italic text-sm">"{comment.content}"</p>
+                                </div>
+                            ))}
+                        </div>
+
+                        {totalPages > 1 && (
+                            <div className="p-6 border-t border-[#E8E4DF] bg-white shrink-0 flex items-center justify-between">
+                                <button 
+                                    onClick={() => setCommentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={commentPage === 1}
+                                    className="px-6 py-2.5 rounded-xl border border-[#E8E4DF] text-xs font-bold uppercase tracking-widest text-[#2C3330] hover:bg-[#F8F7F4] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    Previous
+                                </button>
+                                <span className="text-xs font-bold text-[#707774] uppercase tracking-widest">
+                                    Page {commentPage} of {totalPages}
+                                </span>
+                                <button 
+                                    onClick={() => setCommentPage(prev => Math.min(prev + 1, totalPages))}
+                                    disabled={commentPage === totalPages}
+                                    className="px-6 py-2.5 rounded-xl border border-[#E8E4DF] text-xs font-bold uppercase tracking-widest text-[#2C3330] hover:bg-[#F8F7F4] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

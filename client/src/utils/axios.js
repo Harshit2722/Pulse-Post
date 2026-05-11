@@ -24,7 +24,7 @@ const getCurrentUser = () => API.get('/users/me')
 
 const createPost = (postData) => API.post("/posts/create", postData);
 
-const fetchPosts = () => API.get("/posts");
+const fetchPosts = (cursor = '') => API.get(`/posts${cursor ? `?cursor=${cursor}` : ''}`);
 
 const fetchPostById = (id) => API.get(`/posts/${id}`);
 
@@ -40,19 +40,21 @@ const deleteComment = (postId, commentId) => API.delete(`/posts/${postId}/commen
 
 const updateAvatar = (formData) => API.patch('/users/update-avatar', formData);
 
+const removeAvatar = () => API.delete("/users/remove-avatar");
+
 const editPost = (id, data) => API.patch(`/posts/${id}`, data);
 
 const fetchNotifications = () => API.get('/notifications');
 const deleteNotification = (id) => API.delete(`/notifications/${id}`);
 
 const savePulse = (postId) => API.post(`/users/save/${postId}`);
-const fetchSavedPulses = () => API.get('/users/saved');
+const fetchSavedPulses = (cursor = '') => API.get(`/users/saved${cursor ? `?cursor=${cursor}` : ''}`);
 
-const fetchMyPosts = () => API.get('/posts/my-posts');
+const fetchMyPosts = (cursor = '') => API.get(`/posts/my-posts${cursor ? `?cursor=${cursor}` : ''}`);
 
 export { 
     registerUser, verifyOtp, resendOtp, loginUser, getCurrentUser, createPost, fetchPosts, deletePost, 
-    toggleLike, updateAccount, addComment, deleteComment, googleLogin, updateAvatar, 
+    toggleLike, updateAccount, addComment, deleteComment, googleLogin, updateAvatar, removeAvatar,
     fetchPostById, fetchNotifications, deleteNotification, editPost, savePulse, fetchSavedPulses,
     fetchMyPosts
 }

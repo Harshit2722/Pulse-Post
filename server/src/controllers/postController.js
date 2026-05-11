@@ -50,14 +50,32 @@ const createPost = asyncHandler(async (req, res) => {
 });
 
 const getAllPosts = asyncHandler(async (req, res) => {
-    const posts = await Post.find()
+    const { cursor, limit = 8 } = req.query;
+    const fetchLimit = Number(limit);
+
+    let query = { author: { $ne: req.user._id } };
+    if (cursor) {
+        // If cursor exists, we need to AND it with the author filter
+        query = {
+            ...query,
+            _id: { $lt: cursor }
+        };
+    }
+
+    const posts = await Post.find(query)
         .populate("author", "name avatar")
-        .sort({ createdAt: -1 })
-        .limit(20)
+        .sort({ _id: -1 })
+        .limit(fetchLimit + 1) // FETCH ONE EXTRA TO CHECK AHEAD
         .lean();
 
+    let nextCursor = null;
+    if (posts.length > fetchLimit) {
+        nextCursor = posts[fetchLimit - 1]._id;
+        posts.pop(); // Remove the extra item
+    }
+
     return res.status(200).json(
-        new ApiResponse(200, posts, "Pulse feed loaded")
+        new ApiResponse(200, { posts, nextCursor }, "Pulse feed loaded")
     );
 });
 
@@ -248,13 +266,28 @@ const updatePost = asyncHandler(async (req, res) => {
 });
 
 const getMyPosts = asyncHandler(async (req, res) => {
-    const posts = await Post.find({ author: req.user._id })
+    const { cursor, limit = 8 } = req.query;
+    const fetchLimit = Number(limit);
+
+    let query = { author: req.user._id };
+    if (cursor) {
+        query._id = { $lt: cursor };
+    }
+
+    const posts = await Post.find(query)
         .populate("author", "name avatar")
-        .sort({ createdAt: -1 })
+        .sort({ _id: -1 })
+        .limit(fetchLimit + 1)
         .lean();
 
+    let nextCursor = null;
+    if (posts.length > fetchLimit) {
+        nextCursor = posts[fetchLimit - 1]._id;
+        posts.pop();
+    }
+
     return res.status(200).json(
-        new ApiResponse(200, posts, "Your pulses loaded")
+        new ApiResponse(200, { posts, nextCursor }, "Your pulses loaded")
     );
 });
 

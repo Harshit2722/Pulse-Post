@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { fetchPosts, deletePost, toggleLike, addComment, updateAccount, updateAvatar, fetchMyPosts } from '../utils/axios';
+import { fetchPosts, deletePost, toggleLike, addComment, updateAccount, updateAvatar, removeAvatar, fetchMyPosts } from '../utils/axios';
 import CreatePost from '../components/CreatePost';
 import { toast } from 'react-hot-toast';
 import { useNavigate, useLocation } from 'react-router-dom';
 import NotificationTray from '../components/NotificationTray';
+import Avatar from '../components/Avatar';
 
 const Dashboard = () => {
     const { user, socket, logout, login } = useAuth();
@@ -14,6 +15,10 @@ const Dashboard = () => {
     const [settingsForm, setSettingsForm] = useState({ name: user?.name || '', password: '' });
     const [updating, setUpdating] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [cursorHistory, setCursorHistory] = useState([null]);
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [nextCursor, setNextCursor] = useState(null);
+    const [loading, setLoading] = useState(true);
 
     const navigate = useNavigate();
 
@@ -25,22 +30,45 @@ const Dashboard = () => {
 
     useEffect(() => {
         const loadPosts = async () => {
+            setLoading(true);
             try {
                 let response;
+                const currentCursor = cursorHistory[currentIndex];
                 if (activeTab === 'Feed') {
-                    response = await fetchMyPosts();
+                    response = await fetchMyPosts(currentCursor);
                 } else if (activeTab === 'Explore') {
-                    response = await fetchPosts();
+                    response = await fetchPosts(currentCursor);
                 } else {
+                    setLoading(false);
                     return;
                 }
-                setPosts(response.data.data);
+                setPosts(response.data.data.posts);
+                setNextCursor(response.data.data.nextCursor);
             } catch (err) {
                 toast.error("Failed to load pulses");
+            } finally {
+                setLoading(false);
             }
         };
         loadPosts();
-    }, [activeTab]);
+    }, [activeTab, currentIndex]);
+
+    const handleNext = () => {
+        if (nextCursor) {
+            setCursorHistory(prev => {
+                const newHistory = [...prev];
+                newHistory[currentIndex + 1] = nextCursor;
+                return newHistory;
+            });
+            setCurrentIndex(prev => prev + 1);
+        }
+    };
+
+    const handlePrev = () => {
+        if (currentIndex > 0) {
+            setCurrentIndex(prev => prev - 1);
+        }
+    };
 
     const handleUpdateSettings = async (e) => {
         e.preventDefault();
@@ -74,11 +102,25 @@ const Dashboard = () => {
         }
     };
 
+    const handleRemoveAvatar = async () => {
+        if (!window.confirm("Remove your avatar?")) return;
+        const toastId = toast.loading("Removing avatar...");
+        try {
+            const { data } = await removeAvatar();
+            login(data.data, localStorage.getItem("token"));
+            toast.success("Avatar removed! ✨", { id: toastId });
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Failed to remove avatar", { id: toastId });
+        }
+    };
+
     useEffect(() => {
         if (!socket) return;
         
         socket.on("new-post", (data) => {
-            if (activeTab === 'Explore' || data.post.author._id === user?._id) {
+            if (activeTab === 'Explore' && data.post.author._id !== user?._id) {
+                setPosts(prev => [data.post, ...prev].slice(0, 8)); // keep max 8 on screen
+            } else if (activeTab === 'Feed' && data.post.author._id === user?._id) {
                 setPosts(prev => [data.post, ...prev]);
             }
             if (data.post.author._id !== user?._id) {
@@ -150,6 +192,8 @@ const Dashboard = () => {
                     <button
                         onClick={() => {
                             setActiveTab('Feed');
+                            setCursorHistory([null]);
+                            setCurrentIndex(0);
                             if(window.location.pathname !== '/dashboard') navigate('/dashboard');
                         }}
                         className={`flex items-center space-x-3 w-full px-5 py-3 rounded-2xl transition-all ${activeTab === 'Feed' && window.location.pathname === '/dashboard' ? 'bg-[#526D62] text-white shadow-lg' : 'text-[#707774] hover:bg-white/50'}`}
@@ -165,6 +209,8 @@ const Dashboard = () => {
                     <button
                         onClick={() => {
                             setActiveTab('Explore');
+                            setCursorHistory([null]);
+                            setCurrentIndex(0);
                             if(window.location.pathname !== '/dashboard') navigate('/dashboard', { state: { activeTab: 'Explore' } });
                         }}
                         className={`flex items-center space-x-3 w-full px-5 py-3 rounded-2xl transition-all ${activeTab === 'Explore' && window.location.pathname === '/dashboard' ? 'bg-[#526D62] text-white shadow-lg' : 'text-[#707774] hover:bg-white/50'}`}
@@ -180,6 +226,8 @@ const Dashboard = () => {
                     <button
                         onClick={() => {
                             setActiveTab('Settings');
+                            setCursorHistory([null]);
+                            setCurrentIndex(0);
                             if(window.location.pathname !== '/dashboard') navigate('/dashboard', { state: { activeTab: 'Settings' } });
                         }}
                         className={`flex items-center space-x-3 w-full px-5 py-3 rounded-2xl transition-all ${activeTab === 'Settings' && window.location.pathname === '/dashboard' ? 'bg-[#526D62] text-white shadow-lg' : 'text-[#707774] hover:bg-white/50'}`}
@@ -218,17 +266,7 @@ const Dashboard = () => {
                                 <span>Create Pulse</span>
                             </button>
                             <NotificationTray />
-                            {user?.avatar && (
-                                <div className="relative p-[3px] rounded-full bg-gradient-to-tr from-[#4285F4] via-[#EA4335] to-[#FBBC05] animate-gradient-x shadow-sm">
-                                    <div className="p-[2px] bg-white rounded-full">
-                                        <img
-                                            src={user.avatar}
-                                            alt={user.name}
-                                            className="w-10 h-10 rounded-full object-cover"
-                                        />
-                                    </div>
-                                </div>
-                            )}
+                            <Avatar src={user?.avatar} name={user?.name} className="w-10 h-10 rounded-full object-cover" />
                         </div>
                     </div>
                 </div>
@@ -251,47 +289,82 @@ const Dashboard = () => {
                                         </button>
                                     )}
                                 </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                                        {(activeTab === 'Feed' ? posts.slice(0, 4) : posts.filter(p => p.author?._id !== user?._id)).map(post => (
-                                            <div 
-                                                key={post._id} 
-                                                onClick={() => navigate(`/post/${post._id}`)}
-                                                className="group aspect-square relative rounded-[2.5rem] overflow-hidden border border-[#E8E4DF] shadow-sm hover:shadow-2xl transition-all duration-700 cursor-pointer"
-                                            >
-                                            <img 
-                                                src={post.image || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&q=80&w=1000'} 
-                                                className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                                                alt={post.title} 
-                                            />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-100 transition-opacity duration-500"></div>
-                                            <div className="absolute inset-0 p-8 flex flex-col justify-end">
-                                                <div className="translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                                                    <div className="flex items-center space-x-2 mb-3">
-                                                        <span className="bg-white/20 backdrop-blur-md text-white text-[8px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">
-                                                            {post.category}
-                                                        </span>
-                                                    </div>
-                                                    <h4 className="text-white text-lg font-bold leading-tight line-clamp-2">
-                                                        {post.title}
-                                                    </h4>
-                                                    {activeTab === 'Explore' && (
-                                                        <div className="flex items-center space-x-2 mt-4">
-                                                            <img src={post.author?.avatar} className="w-5 h-5 rounded-full object-cover" />
-                                                            <span className="text-white/60 text-[10px] font-bold uppercase tracking-widest">{post.author?.name}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                                        {loading ? (
+                                            <div className="col-span-full flex justify-center py-20">
+                                                <div className="w-10 h-10 border-4 border-[#526D62]/20 border-t-[#526D62] rounded-full animate-spin"></div>
                                             </div>
+                                        ) : (
+                                            <>
+                                                {(activeTab === 'Feed' 
+                                                    ? posts.slice(0, 4) 
+                                                    : posts
+                                                ).map(post => (
+                                                    <div 
+                                                        key={post._id} 
+                                                        onClick={() => navigate(`/post/${post._id}`)}
+                                                        className="group aspect-square relative rounded-[2.5rem] overflow-hidden border border-[#E8E4DF] shadow-sm hover:shadow-2xl transition-all duration-700 cursor-pointer"
+                                                    >
+                                                    <img 
+                                                        src={post.image || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&q=80&w=1000'} 
+                                                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                                                        alt={post.title} 
+                                                    />
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                                    <div className="absolute inset-0 p-8 flex flex-col justify-end">
+                                                        <div className="translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                                                            <div className="flex items-center space-x-2 mb-3">
+                                                                <span className="bg-white/20 backdrop-blur-md text-white text-[8px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">
+                                                                    {post.category}
+                                                                </span>
+                                                            </div>
+                                                            <h4 className="text-white text-lg font-bold leading-tight line-clamp-2">
+                                                                {post.title}
+                                                            </h4>
+                                                            {activeTab === 'Explore' && (
+                                                                <div className="flex items-center space-x-2 mt-4">
+                                                                    <Avatar src={post.author?.avatar} name={post.author?.name} className="w-5 h-5 rounded-full object-cover" />
+                                                                    <span className="text-white/60 text-[10px] font-bold uppercase tracking-widest">{post.author?.name}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                ))}
+                                                {posts.length === 0 && (
+                                                    <div className="col-span-full py-20 text-center border-2 border-dashed border-[#E8E4DF] rounded-[3rem] bg-white/50">
+                                                        <p className="text-[#707774] italic">
+                                                            {activeTab === 'Feed' 
+                                                                ? "Your gallery is empty. Start by broadcasting a pulse!" 
+                                                                : (currentIndex > 0 ? "No more pulses to display here." : "No pulses found in the network yet.")}
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
                                         </div>
-                                    ))}
-                                    {posts.length === 0 && (
-                                        <div className="col-span-full py-20 text-center border-2 border-dashed border-[#E8E4DF] rounded-[3rem] bg-white/50">
-                                            <p className="text-[#707774] italic">
-                                                {activeTab === 'Feed' ? "Your gallery is empty. Start by broadcasting a pulse!" : "No pulses found in the network yet."}
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
+
+                                {activeTab === 'Explore' && (currentIndex > 0 || nextCursor) && (
+                                    <div className="flex items-center justify-center space-x-6 pt-8 border-t border-[#E8E4DF]">
+                                        <button 
+                                            onClick={handlePrev}
+                                            disabled={currentIndex === 0}
+                                            className="px-6 py-3 rounded-2xl border border-[#E8E4DF] text-xs font-bold uppercase tracking-widest text-[#2C3330] hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm"
+                                        >
+                                            Previous
+                                        </button>
+                                        <span className="text-xs font-bold text-[#707774] uppercase tracking-widest">
+                                            Page {currentIndex + 1}
+                                        </span>
+                                        <button 
+                                            onClick={handleNext}
+                                            disabled={!nextCursor}
+                                            className="px-6 py-3 rounded-2xl border border-[#E8E4DF] text-xs font-bold uppercase tracking-widest text-[#2C3330] hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ) : (
@@ -303,9 +376,9 @@ const Dashboard = () => {
                                 <div className="relative group">
                                     <div className="relative p-[3px] rounded-full bg-gradient-to-tr from-[#4285F4] via-[#EA4335] to-[#FBBC05] shadow-sm">
                                         <div className="p-[2px] bg-white rounded-full">
-                                            <img 
+                                            <Avatar 
                                                 src={user?.avatar} 
-                                                alt="Profile" 
+                                                name={user?.name}
                                                 className="w-24 h-24 rounded-full border-4 border-white shadow-lg object-cover" 
                                             />
                                         </div>
@@ -326,7 +399,15 @@ const Dashboard = () => {
                                 </div>
                                 <div>
                                     <h4 className="text-xl font-bold text-[#2C3330]">{user?.name}</h4>
-                                    <p className="text-[#707774] text-sm">{user?.email}</p>
+                                    <p className="text-[#707774] text-sm mb-3">{user?.email}</p>
+                                    {user?.avatar && (
+                                        <button 
+                                            onClick={handleRemoveAvatar}
+                                            className="text-[10px] font-bold text-red-500 hover:text-red-600 uppercase tracking-[0.1em] transition-colors"
+                                        >
+                                            Remove Photo
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 

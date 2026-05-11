@@ -4,7 +4,7 @@ const { createPost, getAllPosts, deletePost, toggleLike, addComment, postById, d
 const verifyJWT = require('../middleware/authMiddleware');
 const upload = require('../middleware/multerMiddleware');
 
-router.get('/', getAllPosts);
+router.get('/', verifyJWT, getAllPosts);
 router.post('/create', verifyJWT, upload.single("image"), createPost);
 router.get('/my-posts', verifyJWT, getMyPosts);
 router.get("/:id", verifyJWT, postById);
