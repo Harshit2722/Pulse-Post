@@ -1,10 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { registerUser, loginUser, googleLogin, getCurrentUser, updateAccount, updateAvatar, toggleSavePost, getSavedPosts } = require('../controllers/userController');
+const { registerUser, verifyOtp, resendOtp, loginUser, googleLogin, getCurrentUser, updateAccount, updateAvatar, toggleSavePost, getSavedPosts } = require('../controllers/userController');
 const verifyJWT = require('../middleware/authMiddleware');
 const upload = require('../middleware/multerMiddleware');
 
 router.post('/register', registerUser);
+router.post('/verify-otp', verifyOtp);
+router.post('/resend-otp', resendOtp);
 router.post('/login', loginUser);
 router.post('/google-login', googleLogin);
 

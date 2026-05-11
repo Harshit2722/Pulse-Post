@@ -8,7 +8,10 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true },
     avatar: { type: String }, 
     googleId: { type: String },
-    savedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }]
+    savedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
+    otp: { type: String },
+    otpExpires: { type: Date },
+    isVerified: { type: Boolean, default: false }
 }, { timestamps: true });
 
 // Hash password before saving

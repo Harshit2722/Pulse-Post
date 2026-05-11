@@ -5,7 +5,7 @@ const User = require("../models/userModel");
 const { OAuth2Client } = require('google-auth-library');
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const {uploadToCloudinary} = require("../utils/cloudinary");
-
+const { sendOTP } = require("../utils/emailService");
 
 const registerUser = asyncHandler(async (req, res) => {
     const { name, email, password } = req.body;
@@ -16,13 +16,28 @@ const registerUser = asyncHandler(async (req, res) => {
 
     const existingUserEmail = await User.findOne({ email });
     if(existingUserEmail){
-        throw new ApiError(400, "Email already exists");
+        if (existingUserEmail.isVerified) {
+            throw new ApiError(400, "Email already exists and is verified");
+        } else {
+            // Unverified user trying to register again
+            const otp = Math.floor(100000 + Math.random() * 900000).toString();
+            existingUserEmail.otp = otp;
+            existingUserEmail.otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+            existingUserEmail.name = name;
+            existingUserEmail.password = password; // pre-save hook will hash it again
+            await existingUserEmail.save();
+            await sendOTP(email, otp);
+            return res.status(200).json(new ApiResponse(200, { email }, "OTP sent to your email"));
+        }
     }
 
-    const user = await User.create({ name, email, password });
-    const createdUser = await User.findById(user._id).select("-password");
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
-    return res.status(201).json(new ApiResponse(201, createdUser, "User created!"));
+    const user = await User.create({ name, email, password, otp, otpExpires, isVerified: false });
+    await sendOTP(email, otp);
+
+    return res.status(201).json(new ApiResponse(201, { email }, "Registration initiated. OTP sent!"));
 });
 
 const googleLogin = asyncHandler(async (req, res) => {
@@ -66,6 +81,73 @@ const googleLogin = asyncHandler(async (req, res) => {
     }
 });
 
+const verifyOtp = asyncHandler(async (req, res) => {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+        throw new ApiError(400, "Email and OTP are required");
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    if (user.isVerified) {
+        throw new ApiError(400, "User is already verified");
+    }
+
+    if (user.otp !== otp) {
+        throw new ApiError(400, "Invalid OTP");
+    }
+
+    if (new Date() > new Date(user.otpExpires)) {
+        throw new ApiError(400, "OTP has expired");
+    }
+
+    // Mark as verified and clear OTP
+    user.isVerified = true;
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    await user.save();
+
+    const token = user.generateAccessToken();
+    const loggedInUser = await User.findById(user._id).select("-password");
+
+    return res.status(200).json(
+        new ApiResponse(200, { user: loggedInUser, token }, "Email verified successfully")
+    );
+});
+
+const resendOtp = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        throw new ApiError(400, "Email is required");
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    if (user.isVerified) {
+        throw new ApiError(400, "User is already verified");
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.otp = otp;
+    user.otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+    await user.save();
+
+    await sendOTP(email, otp);
+
+    return res.status(200).json(
+        new ApiResponse(200, { email }, "New OTP sent to your email")
+    );
+});
+
+
 const loginUser = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
@@ -76,6 +158,10 @@ const loginUser = asyncHandler(async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) {
         throw new ApiError(401, "Invalid credentials");
+    }
+
+    if (!user.isVerified) {
+        throw new ApiError(403, "Please verify your email before logging in");
     }
 
     const isPasswordValid = await user.isPasswordCorrect(password);
@@ -179,4 +265,4 @@ const getSavedPosts = asyncHandler(async (req, res) => {
     );
 });
 
-module.exports = { registerUser, loginUser, googleLogin, getCurrentUser, updateAccount, updateAvatar, toggleSavePost, getSavedPosts };
+module.exports = { registerUser, verifyOtp, resendOtp, loginUser, googleLogin, getCurrentUser, updateAccount, updateAvatar, toggleSavePost, getSavedPosts };
