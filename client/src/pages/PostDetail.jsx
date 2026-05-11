@@ -201,10 +201,10 @@ const PostDetail = () => {
                 
                 {/* Left Column: Post Content */}
                 <div className="col-span-8 space-y-12">
-                    <div className="relative group overflow-hidden rounded-[2.5rem] shadow-2xl border border-[#E8E4DF]">
+                    <div className="relative group overflow-hidden rounded-[2.5rem] shadow-2xl border border-[#E8E4DF] bg-black/5">
                         <img 
                             src={post.image || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&q=80&w=2000'} 
-                            className="w-full object-cover aspect-[16/9] transition-transform duration-1000 group-hover:scale-105" 
+                            className="w-full h-auto max-h-[80vh] object-contain transition-transform duration-1000 group-hover:scale-[1.02]" 
                             alt={post.title} 
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -345,7 +345,7 @@ const PostDetail = () => {
                             </div>
                         </div>
                         <h4 className="text-xl font-bold tracking-tight">{post.author?.name}</h4>
-                        <p className="text-xs text-[#707774] font-medium mt-1 mb-6 uppercase tracking-widest">Sustainable Living Advocate</p>
+                        <p className="text-xs text-[#707774] font-medium mt-1 mb-6 uppercase tracking-widest">{post.author?.tagline || 'Creator'}</p>
                         
                         {post.author?._id !== user?._id && (
                             <button className="w-full bg-[#526D62] text-white py-4 rounded-3xl text-xs font-bold uppercase tracking-[0.2em] hover:bg-[#43594f] transition-all shadow-lg active:scale-95 mb-10">
@@ -373,9 +373,7 @@ const PostDetail = () => {
                                 </svg>
                             </div>
                             <span className="text-xs font-bold uppercase tracking-widest">Appreciate Post</span>
-                        </button>
-
-                        <button 
+                        </button>                        <button 
                             onClick={handleSave}
                             className="flex items-center space-x-4 w-full text-[#707774] hover:text-[#2C3330] transition-colors group"
                         >
@@ -385,15 +383,6 @@ const PostDetail = () => {
                                 </svg>
                             </div>
                             <span className="text-xs font-bold uppercase tracking-widest">{isSaved ? 'Pulse in Library' : 'Save for Later'}</span>
-                        </button>
-
-                        <button className="flex items-center space-x-4 w-full text-[#707774] hover:text-[#2C3330] transition-colors group">
-                            <div className="p-2 bg-white rounded-xl group-hover:bg-[#E8E4DF] transition-all">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
-                                </svg>
-                            </div>
-                            <span className="text-xs font-bold uppercase tracking-widest">Share Pulse</span>
                         </button>
                     </div>
                 </aside>

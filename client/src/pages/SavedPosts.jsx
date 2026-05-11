@@ -82,7 +82,7 @@ const SavedPosts = () => {
                         <span className="text-sm font-bold">Dashboard</span>
                     </button>
                     <button onClick={() => navigate('/my-pulses')} className="flex items-center space-x-3 w-full px-5 py-3 rounded-2xl text-[#707774] hover:bg-white/50 transition-all">
-                        <span className="text-sm font-bold">My Pulses</span>
+                        <span className="text-sm font-bold">Your Pulses</span>
                     </button>
                     <button onClick={() => navigate('/dashboard', { state: { activeTab: 'Explore' } })} className="flex items-center space-x-3 w-full px-5 py-3 rounded-2xl text-[#707774] hover:bg-white/50 transition-all">
                         <span className="text-sm font-bold">Explore</span>

@@ -34,7 +34,7 @@ const createPost = asyncHandler(async (req, res) => {
         image: imageUrl
     })
 
-    post = await post.populate("author", "name avatar");
+    post = await post.populate("author", "name avatar tagline");
 
     // 🔥 REAL-TIME: Notify all connected clients
     const io = req.app.get("io");
@@ -63,7 +63,7 @@ const getAllPosts = asyncHandler(async (req, res) => {
     }
 
     const posts = await Post.find(query)
-        .populate("author", "name avatar")
+        .populate("author", "name avatar tagline")
         .sort({ _id: -1 })
         .limit(fetchLimit + 1) // FETCH ONE EXTRA TO CHECK AHEAD
         .lean();
@@ -82,7 +82,7 @@ const getAllPosts = asyncHandler(async (req, res) => {
 const postById = asyncHandler(async (req,res)=>{
     const {id} = req.params;
 
-    const post = await Post.findById(id).populate("author","name avatar").populate("comments.author","name avatar");
+    const post = await Post.findById(id).populate("author","name avatar tagline").populate("comments.author","name avatar");
 
     if(!post){
         throw new ApiError(404,"Post not found");
@@ -255,7 +255,7 @@ const updatePost = asyncHandler(async (req, res) => {
 
     await post.save();
 
-    post = await post.populate("author", "name avatar");
+    post = await post.populate("author", "name avatar tagline");
 
     const io = req.app.get("io");
     io.emit("post-updated", post);
@@ -275,7 +275,7 @@ const getMyPosts = asyncHandler(async (req, res) => {
     }
 
     const posts = await Post.find(query)
-        .populate("author", "name avatar")
+        .populate("author", "name avatar tagline")
         .sort({ _id: -1 })
         .limit(fetchLimit + 1)
         .lean();
