@@ -249,7 +249,7 @@ const PostDetail = () => {
                     <div className="relative group overflow-hidden rounded-[2.5rem] shadow-2xl border border-[#E8E4DF] bg-black/5">
                         <img 
                             src={post.image || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&q=80&w=2000'} 
-                            className="w-full h-auto max-h-[80vh] object-contain transition-transform duration-1000 group-hover:scale-[1.02]" 
+                            className="w-full h-auto min-h-[400px] max-h-[80vh] object-cover transition-transform duration-1000 group-hover:scale-[1.02]" 
                             alt={post.title} 
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>

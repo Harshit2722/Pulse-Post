@@ -20,6 +20,18 @@ const ProtectedRoute = ({ children }) => {
     return children;
 };
 
+const PublicRoute = ({ children }) => {
+    const { user, loading } = useAuth();
+    
+    if (loading) return <div className="min-h-screen bg-[#F8F7F4] text-[#2C3330] flex items-center justify-center font-bold text-2xl">Loading...</div>;
+    
+    if(user){
+        return <Navigate to="/dashboard" replace={true}/>;
+    }
+    
+    return children;
+};
+
 export default function App() {
   return (
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
@@ -27,9 +39,9 @@ export default function App() {
         <BrowserRouter>
           <Toaster position="top-right" />
           <Routes>
-            <Route path="/" element={<Navigate to="/login" />} />
-            <Route path="/register" element={<Auth />} />
-            <Route path="/login" element={<Auth />} />
+            <Route path="/" element={<PublicRoute><Navigate to="/login" replace={true}/></PublicRoute>} />
+            <Route path="/register" element={<PublicRoute><Auth /></PublicRoute>} />
+            <Route path="/login" element={<PublicRoute><Auth /></PublicRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard/></ProtectedRoute>} />
             <Route path="/post/:id" element={<ProtectedRoute><PostDetail/></ProtectedRoute>} />
             <Route path="/library" element={<ProtectedRoute><SavedPosts/></ProtectedRoute>} />
