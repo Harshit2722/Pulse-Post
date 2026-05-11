@@ -1,17 +1,22 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { fetchPosts, deletePost, toggleLike, addComment, incrementView, updateAccount, updateAvatar } from '../utils/axios';
+import { fetchPosts, deletePost, toggleLike, addComment, updateAccount, updateAvatar } from '../utils/axios';
 import CreatePost from '../components/CreatePost';
 import { toast } from 'react-hot-toast';
+import { useNavigate, useLocation } from 'react-router-dom';
+import NotificationTray from '../components/NotificationTray';
 
 const Dashboard = () => {
     const { user, socket, logout, login } = useAuth();
+    const location = useLocation();
     const [posts, setPosts] = useState([]);
     const [expandedComments, setExpandedComments] = useState(null);
     const [commentText, setCommentText] = useState("");
-    const [activeTab, setActiveTab] = useState('Feed');
+    const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'Feed');
     const [settingsForm, setSettingsForm] = useState({ name: user?.name || '', password: '' });
     const [updating, setUpdating] = useState(false);
+
+    const navigate = useNavigate();
 
     const hasFetched = useRef(false);
 
@@ -23,7 +28,6 @@ const Dashboard = () => {
             try {
                 const { data } = await fetchPosts();
                 setPosts(data.data);
-                data.data.forEach(p => incrementView(p._id).catch(() => { }));
             } catch (err) {
                 toast.error("Failed to load feed");
             }
@@ -102,10 +106,6 @@ const Dashboard = () => {
 
         socket.on("update-likes", (data) => {
             setPosts(prev => {
-                const post = prev.find(p => p._id === data.postId);
-                if (data.isLikedNow && post?.author?._id === user?._id && data.likerName !== user?.name) {
-                    toast(`${data.likerName} loved your pulse!`, { icon: '❤️', id: `like-${data.postId}` });
-                }
                 return prev.map(p =>
                     p._id === data.postId ? { ...p, likes: data.likes } : p
                 );
@@ -116,10 +116,6 @@ const Dashboard = () => {
             setPosts(prev => prev.map(p =>
                 p._id === data.postId ? { ...p, comments: data.comments } : p
             ));
-
-            if (data.postAuthorId === user?._id && data.commenterName !== user?.name) {
-                toast(`${data.commenterName} shared a reflection on your pulse!`, { icon: '💬', id: `comm-${data.postId}-${Date.now()}` });
-            }
         });
 
         return () => {
@@ -165,15 +161,24 @@ const Dashboard = () => {
                 </div>
 
                 <nav className="space-y-3 flex-1">
-                    {['Feed', 'Settings'].map((item) => (
-                        <button
-                            key={item}
-                            onClick={() => setActiveTab(item)}
-                            className={`flex items-center space-x-3 w-full px-5 py-3 rounded-2xl transition-all ${activeTab === item ? 'bg-[#526D62] text-white shadow-lg' : 'text-[#707774] hover:bg-white/50'}`}
-                        >
-                            <span className="text-sm font-bold">{item}</span>
-                        </button>
-                    ))}
+                    <button
+                        onClick={() => setActiveTab('Feed')}
+                        className={`flex items-center space-x-3 w-full px-5 py-3 rounded-2xl transition-all ${activeTab === 'Feed' ? 'bg-[#526D62] text-white shadow-lg' : 'text-[#707774] hover:bg-white/50'}`}
+                    >
+                        <span className="text-sm font-bold">Feed</span>
+                    </button>
+                    <button
+                        onClick={() => navigate('/library')}
+                        className={`flex items-center space-x-3 w-full px-5 py-3 rounded-2xl transition-all ${window.location.pathname === '/library' ? 'bg-[#526D62] text-white shadow-lg' : 'text-[#707774] hover:bg-white/50'}`}
+                    >
+                        <span className="text-sm font-bold">Library</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('Settings')}
+                        className={`flex items-center space-x-3 w-full px-5 py-3 rounded-2xl transition-all ${activeTab === 'Settings' ? 'bg-[#526D62] text-white shadow-lg' : 'text-[#707774] hover:bg-white/50'}`}
+                    >
+                        <span className="text-sm font-bold">Settings</span>
+                    </button>
                 </nav>
 
                 <button onClick={logout} className="mt-auto px-5 py-3 text-sm font-bold text-[#707774] hover:text-red-500 text-left transition-colors">
@@ -189,17 +194,20 @@ const Dashboard = () => {
                         <h2 className="text-4xl font-bold text-[#2C3330] tracking-tight">
                             Welcome back, <span className="text-[#526D62] italic font-serif ">{user?.name.charAt(0).toUpperCase() + user?.name.slice(1)}</span>
                         </h2>
-                        {user?.avatar && (
-                            <div className="relative p-[3px] rounded-full bg-gradient-to-tr from-[#4285F4] via-[#EA4335] to-[#FBBC05] animate-gradient-x shadow-sm">
-                                <div className="p-[2px] bg-white rounded-full">
-                                    <img
-                                        src={user.avatar}
-                                        alt={user.name}
-                                        className="w-12 h-12 rounded-full object-cover"
-                                    />
+                        <div className="flex items-center space-x-6">
+                            <NotificationTray />
+                            {user?.avatar && (
+                                <div className="relative p-[3px] rounded-full bg-gradient-to-tr from-[#4285F4] via-[#EA4335] to-[#FBBC05] animate-gradient-x shadow-sm">
+                                    <div className="p-[2px] bg-white rounded-full">
+                                        <img
+                                            src={user.avatar}
+                                            alt={user.name}
+                                            className="w-12 h-12 rounded-full object-cover"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
                     <p className="text-[#707774] mt-1 text-lg">Your creator workspace is ready.</p>
                 </div>
@@ -209,104 +217,62 @@ const Dashboard = () => {
                     {activeTab === 'Feed' ? (
                         <>
                             {/* CENTER FEED */}
-                            <div className="col-span-8 space-y-10">
+                            <div className="col-span-8 space-y-12">
                                 <div className="bg-white rounded-[2.5rem] p-2 shadow-sm border border-[#E8E4DF]">
                                     <CreatePost />
                                 </div>
-
-                                <div className="space-y-6">
-                                    {posts.map(post => (
-                                        <div key={post._id} className="bg-white rounded-[2.5rem] p-10 border border-[#E8E4DF] shadow-sm group transition-all relative">
-                                            <div className="flex items-center justify-between mb-6">
-                                                <div className="flex items-center space-x-3">
-                                                    <span className="bg-[#DAE2DF] text-[#526D62] text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-tight">
-                                                        {post.category}
-                                                    </span>
-                                                    <div className="flex items-center space-x-2">
-                                                        {post.author?.avatar ? (
-                                                            <img src={post.author.avatar} alt={post.author.name} className="w-6 h-6 rounded-full object-cover" />
-                                                        ) : (
-                                                            <div className="w-6 h-6 rounded-full bg-[#E6D5C3] flex items-center justify-center text-[10px] font-bold text-[#2C3330]">
-                                                                {post.author?.name?.charAt(0).toUpperCase()}
-                                                            </div>
-                                                        )}
-                                                        <span className="text-sm font-bold text-[#2C3330] italic font-serif lowercase">{post.author?.name}</span>
+                                {/* RECENT PULSES GALLERY */}
+                                <div className="space-y-8">
+                                    <div className="flex items-center justify-between px-4">
+                                        <h3 className="text-2xl font-bold text-[#2C3330] tracking-tighter">Recent Pulses</h3>
+                                        <button 
+                                            onClick={() => setActiveTab('Settings')} // Or create a new tab for 'Gallery'
+                                            className="text-[10px] font-black uppercase tracking-[0.2em] text-[#526D62] hover:underline transition-all"
+                                        >
+                                            View Full Gallery →
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-8">
+                                        {posts.slice(0, 4).map(post => (
+                                            <div 
+                                                key={post._id} 
+                                                onClick={() => navigate(`/post/${post._id}`)}
+                                                className="group aspect-square relative rounded-[2.5rem] overflow-hidden border border-[#E8E4DF] shadow-sm hover:shadow-2xl transition-all duration-700 cursor-pointer"
+                                            >
+                                                {/* Background Image */}
+                                                <img 
+                                                    src={post.image || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&q=80&w=1000'} 
+                                                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                                                    alt={post.title} 
+                                                />
+                                                
+                                                {/* Immersive Hover Overlay */}
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                                
+                                                {/* Content */}
+                                                <div className="absolute inset-0 p-8 flex flex-col justify-end">
+                                                    <div className="translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                                                        <div className="flex items-center space-x-2 mb-3">
+                                                            <span className="bg-white/20 backdrop-blur-md text-white text-[8px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">
+                                                                {post.category}
+                                                            </span>
+                                                        </div>
+                                                        <h4 className="text-white text-xl font-bold leading-tight line-clamp-2">
+                                                            {post.title}
+                                                        </h4>
+                                                        <p className="text-white/60 text-xs mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500 line-clamp-1">
+                                                            {new Date(post.createdAt).toLocaleDateString()} • Click to expand
+                                                        </p>
                                                     </div>
                                                 </div>
-                                                <span className="text-[10px] text-[#707774] font-bold uppercase">
-                                                    {new Date(post.createdAt).toLocaleDateString()}
-                                                </span>
                                             </div>
-
-                                            <h4 className="text-2xl font-bold text-[#2C3330] mb-3 leading-tight">{post.title}</h4>
-                                            <p className="text-[#707774] leading-relaxed text-lg whitespace-pre-wrap">{post.content}</p>
-
-                                            {post.image && (
-                                                <img src={post.image} className="mt-6 rounded-2xl w-full h-64 object-cover border border-[#F1EFEA]" alt="Pulse" />
-                                            )}
-
-                                            <div className="mt-8 flex items-center justify-between pt-6 border-t border-[#F1EFEA]">
-                                                <div className="flex items-center space-x-8">
-                                                    <button onClick={() => handleLike(post._id)} className="flex items-center space-x-2 text-sm font-bold text-[#707774] hover:text-[#526D62] transition-colors">
-                                                        <span className="text-base">{post.likes.includes(user?._id) ? '❤️' : '🤍'}</span>
-                                                        <span>{post.likes.length}</span>
-                                                    </button>
-                                                    <div className="flex items-center space-x-2 text-sm font-bold text-[#707774]">
-                                                        <span className="text-base">👁️</span>
-                                                        <span>{post.views || 0}</span>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => setExpandedComments(expandedComments === post._id ? null : post._id)}
-                                                        className="flex items-center space-x-2 text-sm font-bold text-[#707774] hover:text-[#526D62] transition-colors"
-                                                    >
-                                                        <span className="text-base">💬</span>
-                                                        <span>{post.comments?.length || 0}</span>
-                                                    </button>
-                                                </div>
-
-                                                {post.author?._id === user?._id && (
-                                                    <button onClick={() => handleDelete(post._id)} className="text-[10px] font-black text-red-400 hover:text-red-600 tracking-widest opacity-0 group-hover:opacity-100 transition-all uppercase">
-                                                        🗑️
-                                                    </button>
-                                                )}
+                                        ))}
+                                        {posts.length === 0 && (
+                                            <div className="col-span-2 py-20 text-center border-2 border-dashed border-[#E8E4DF] rounded-[2.5rem]">
+                                                <p className="text-[#707774] italic">Your gallery is empty. Start by broadcasting a pulse!</p>
                                             </div>
-
-                                            {expandedComments === post._id && (
-                                                <div className="mt-8 pt-8 border-t border-[#F1EFEA] animate-in slide-in-from-top-4 duration-300">
-                                                    <div className="space-y-6 mb-8 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-                                                        {post.comments?.map((comment, idx) => (
-                                                            <div key={idx} className="flex flex-col">
-                                                                <span className="text-[10px] font-bold text-[#526D62] uppercase tracking-widest mb-1">
-                                                                    {comment.author?.name}
-                                                                </span>
-                                                                <p className="text-sm text-[#707774] leading-relaxed">{comment.content}</p>
-                                                            </div>
-                                                        ))}
-                                                        {post.comments?.length === 0 && (
-                                                            <p className="text-sm italic text-[#707774]/50">No reflections yet.</p>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="flex space-x-4">
-                                                        <input
-                                                            type="text"
-                                                            placeholder="Add a reflection..."
-                                                            className="flex-1 bg-[#F8F7F4] border border-[#E8E4DF] rounded-xl px-5 py-3 text-sm outline-none focus:border-[#526D62]"
-                                                            value={commentText}
-                                                            onChange={(e) => setCommentText(e.target.value)}
-                                                            onKeyPress={(e) => e.key === 'Enter' && submitComment(post._id)}
-                                                        />
-                                                        <button
-                                                            onClick={() => submitComment(post._id)}
-                                                            className="bg-[#526D62] text-white px-6 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-[#43594f] transition-colors"
-                                                        >
-                                                            Post
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 

@@ -4,6 +4,8 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import Auth from './pages/Auth';
 import Dashboard from './pages/Dashboard';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import PostDetail from './pages/PostDetail';
+import SavedPosts from './pages/SavedPosts';
 
 const ProtectedRoute = ({ children }) => {
     const { user, loading } = useAuth();
@@ -28,6 +30,8 @@ export default function App() {
             <Route path="/register" element={<Auth />} />
             <Route path="/login" element={<Auth />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard/></ProtectedRoute>} />
+            <Route path="/post/:id" element={<ProtectedRoute><PostDetail/></ProtectedRoute>} />
+            <Route path="/library" element={<ProtectedRoute><SavedPosts/></ProtectedRoute>} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>
