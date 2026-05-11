@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { fetchNotifications, deleteNotification } from '../utils/axios';
+import { fetchNotifications, deleteNotification, clearAllNotifications } from '../utils/axios';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -58,6 +58,17 @@ const NotificationTray = () => {
         }
     };
 
+    const handleClearAll = async () => {
+        if (!window.confirm("Clear all notifications?")) return;
+        try {
+            await clearAllNotifications();
+            setNotifications([]);
+            toast.success("Notifications cleared");
+        } catch (err) {
+            toast.error("Failed to clear notifications");
+        }
+    };
+
     const unreadCount = notifications.filter(n => !n.isRead).length;
 
     return (
@@ -77,8 +88,18 @@ const NotificationTray = () => {
             {isOpen && (
                 <div className="absolute right-0 mt-4 w-80 bg-white rounded-3xl shadow-2xl border border-[#E8E4DF] overflow-hidden z-[60] animate-in fade-in slide-in-from-top-5 duration-300">
                     <div className="p-5 border-b border-[#F1EFEA] flex items-center justify-between bg-[#F8F7F4]/50">
-                        <h3 className="text-sm font-black uppercase tracking-widest">Activity</h3>
-                        <span className="text-[10px] font-bold text-[#707774]">{notifications.length} Total</span>
+                        <div className="flex flex-col">
+                            <h3 className="text-sm font-black uppercase tracking-widest">Activity</h3>
+                            <span className="text-[10px] font-bold text-[#707774]">{notifications.length} Total</span>
+                        </div>
+                        {notifications.length > 0 && (
+                            <button 
+                                onClick={handleClearAll}
+                                className="text-[10px] font-black uppercase tracking-widest text-red-500 hover:text-red-600 transition-colors"
+                            >
+                                Clear All
+                            </button>
+                        )}
                     </div>
 
                     <div className="max-h-96 overflow-y-auto custom-scrollbar">

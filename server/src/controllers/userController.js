@@ -5,7 +5,7 @@ const User = require("../models/userModel");
 const { OAuth2Client } = require('google-auth-library');
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const {uploadToCloudinary} = require("../utils/cloudinary");
-const { sendOTP } = require("../utils/emailService");
+const { sendOTP, sendForgotPasswordOTP } = require("../utils/emailService");
 const Post = require("../models/postModel");
 
 const registerUser = asyncHandler(async (req, res) => {
@@ -304,4 +304,64 @@ const getSavedPosts = asyncHandler(async (req, res) => {
     );
 });
 
-module.exports = { registerUser, verifyOtp, resendOtp, loginUser, googleLogin, getCurrentUser, updateAccount, updateAvatar, removeAvatar, toggleSavePost, getSavedPosts };
+const forgotPasswordRequest = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+    if (!email) throw new ApiError(400, "Email is required");
+
+    const user = await User.findOne({ email });
+    if (!user) throw new ApiError(404, "User not found");
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.otp = otp;
+    user.otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+    await user.save();
+
+    await sendForgotPasswordOTP(email, otp);
+
+    return res.status(200).json(
+        new ApiResponse(200, { email }, "Password reset OTP sent to your email")
+    );
+});
+
+const verifyForgotPasswordOtp = asyncHandler(async (req, res) => {
+    const { email, otp } = req.body;
+    if (!email || !otp) throw new ApiError(400, "Email and OTP are required");
+
+    const user = await User.findOne({ email, otp });
+    if (!user) throw new ApiError(400, "Invalid or expired OTP");
+
+    if (user.otpExpires < Date.now()) {
+        throw new ApiError(400, "OTP has expired");
+    }
+
+    return res.status(200).json(
+        new ApiResponse(200, {}, "OTP verified successfully")
+    );
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+    const { email, otp, password } = req.body;
+    if (!email || !otp || !password) throw new ApiError(400, "All fields are required");
+
+    const user = await User.findOne({ email, otp });
+    if (!user) throw new ApiError(400, "Invalid request or OTP");
+
+    if (user.otpExpires < Date.now()) {
+        throw new ApiError(400, "OTP has expired");
+    }
+
+    user.password = password; // Pre-save hook hashes it
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    await user.save();
+
+    return res.status(200).json(
+        new ApiResponse(200, {}, "Password reset successful! You can now login.")
+    );
+});
+
+module.exports = { 
+    registerUser, googleLogin, verifyOtp, resendOtp, loginUser, getCurrentUser, 
+    updateAccount, updateAvatar, removeAvatar, toggleSavePost, getSavedPosts,
+    forgotPasswordRequest, verifyForgotPasswordOtp, resetPassword
+};

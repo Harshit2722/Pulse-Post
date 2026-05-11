@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { loginUser, registerUser, googleLogin, verifyOtp, resendOtp } from '../utils/axios';
+import { loginUser, registerUser, googleLogin, verifyOtp, resendOtp, forgotPasswordRequest, verifyForgotPasswordOtp, resetPassword } from '../utils/axios';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useGoogleLogin } from '@react-oauth/google';
@@ -19,6 +19,10 @@ const Auth = () => {
     const [form, setForm] = useState({ name: '', email: '', password: '' });
     const [isOtpStep, setIsOtpStep] = useState(false);
     const [otp, setOtp] = useState('');
+    const [isForgotMode, setIsForgotMode] = useState(false);
+    const [forgotStep, setForgotStep] = useState(1); // 1: Email, 2: OTP, 3: New Password
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
 
     const handleGoogleSuccess = async (tokenResponse) => {
         setLoading(true);
@@ -31,7 +35,7 @@ const Auth = () => {
             const { data } = await googleLogin(tokenResponse.access_token);
             const { token, user } = data.data;
             login(user, token);
-            toast.success("Signed in with Google! 🌈");
+            toast.success(`Welcome Back! ${user.name}`, { icon: '✨' });
             navigate('/dashboard');
         } catch (err) {
             toast.error(err.response?.data?.message || "Google sign-in failed");
@@ -49,6 +53,8 @@ const Auth = () => {
         setIsLogin(location.pathname === '/login');
         setErrors({});
         setIsOtpStep(false);
+        setIsForgotMode(false);
+        setForgotStep(1);
         setOtp('');
     }, [location.pathname]);
 
@@ -79,7 +85,7 @@ const Auth = () => {
                 const { data } = await loginUser({ email: form.email, password: form.password });
                 const { token, user } = data.data;
                 login(user, token);
-                toast.success("Welcome back! ⚡");
+                toast.success(`Welcome Back! ${user.name}`, { icon: '✨' });
                 navigate('/dashboard');
             } else {
                 await registerUser(form);
@@ -125,6 +131,67 @@ const Auth = () => {
         }
     };
 
+    const handleForgotRequest = async (e) => {
+        e.preventDefault();
+        if (!form.email) {
+            setErrors({ email: "Email is required" });
+            return;
+        }
+        setLoading(true);
+        try {
+            await forgotPasswordRequest(form.email);
+            toast.success("Reset OTP sent to your email! 📧");
+            setForgotStep(2);
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Failed to send reset OTP");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleVerifyForgotOtp = async (e) => {
+        e.preventDefault();
+        if (!otp || otp.length !== 6) {
+            toast.error("Enter a valid 6-digit code");
+            return;
+        }
+        setLoading(true);
+        try {
+            await verifyForgotPasswordOtp({ email: form.email, otp });
+            setForgotStep(3);
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Invalid or expired OTP");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleFinalReset = async (e) => {
+        e.preventDefault();
+        if (!newPassword || newPassword.length < 6) {
+            toast.error("Password must be 6+ characters");
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            toast.error("Passwords do not match");
+            return;
+        }
+        setLoading(true);
+        try {
+            await resetPassword({ email: form.email, otp, password: newPassword });
+            toast.success("Password updated! Sign in now. ✨");
+            setIsForgotMode(false);
+            setForgotStep(1);
+            setOtp('');
+            setIsLogin(true);
+            navigate('/login');
+        } catch (err) {
+            toast.error(err.response?.data?.message || "Failed to reset password");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="h-screen w-screen flex items-center justify-center bg-[#F8F7F4] font-['Instrument_Sans'] overflow-hidden p-4">
             
@@ -164,14 +231,107 @@ const Auth = () => {
                     <div className="max-w-sm w-full mx-auto">
                         <div className="mb-10 text-center lg:text-left">
                             <h3 className="text-3xl font-bold text-[#2C3330] mb-2 tracking-tight font-sans">
-                                {isLogin ? "Welcome Back" : isOtpStep ? "Verify Email" : "Create Account"}
+                                {isForgotMode ? (forgotStep === 1 ? "Forgot Password" : forgotStep === 2 ? "Verify OTP" : "New Password") : isLogin ? "Welcome Back" : isOtpStep ? "Verify Email" : "Create Account"}
                             </h3>
                             <p className="text-[#707774] text-sm font-sans">
-                                {isLogin ? "Sign in to your organic feed." : isOtpStep ? `We sent a 6-digit code to ${form.email}` : "Join the new era of creator connection."}
+                                {isForgotMode ? (forgotStep === 1 ? "Enter your email to receive a reset code." : forgotStep === 2 ? `Enter the 6-digit code sent to ${form.email}` : "Set a new secure password.") : isLogin ? "Sign in to your organic feed." : isOtpStep ? `We sent a 6-digit code to ${form.email}` : "Join the new era of creator connection."}
                             </p>
                         </div>
 
-                        {isOtpStep ? (
+                        {isForgotMode ? (
+                            <div className="animate-[fadeIn_0.5s_ease-in-out]">
+                                {forgotStep === 1 && (
+                                    <form onSubmit={handleForgotRequest} className="space-y-6">
+                                        <div className="space-y-2">
+                                            <label className="block text-[10px] font-bold text-[#707774] uppercase tracking-[0.2em] ml-1 font-sans">Email Address</label>
+                                            <input
+                                                name="email"
+                                                type="email"
+                                                placeholder="hello@example.com"
+                                                className={`w-full bg-[#F8F7F4] border ${errors.email ? 'border-red-500' : 'border-[#E8E4DF]'} rounded-2xl px-6 py-4 text-[#2C3330] outline-none focus:border-[#526D62] transition-all text-sm font-sans`}
+                                                value={form.email}
+                                                onChange={handleChange}
+                                            />
+                                            {errors.email && <p className="text-[10px] text-red-500 ml-1 font-sans">{errors.email}</p>}
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            disabled={loading}
+                                            className="w-full bg-[#526D62] hover:bg-[#43594f] text-white font-bold py-4 rounded-2xl shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 text-sm uppercase tracking-[0.2em]"
+                                        >
+                                            {loading ? "Sending..." : "Send Reset Code"}
+                                        </button>
+                                        <button 
+                                            type="button"
+                                            onClick={() => setIsForgotMode(false)}
+                                            className="w-full text-[10px] font-bold text-[#707774] uppercase tracking-[0.2em] hover:text-[#2C3330] transition-colors"
+                                        >
+                                            Back to Login
+                                        </button>
+                                    </form>
+                                )}
+                                {forgotStep === 2 && (
+                                    <form onSubmit={handleVerifyForgotOtp} className="space-y-6">
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-[#707774] uppercase tracking-[0.2em] mb-2 ml-1">Verification Code</label>
+                                            <input
+                                                type="text"
+                                                maxLength="6"
+                                                placeholder="000000"
+                                                className="w-full bg-[#F8F7F4] border border-[#E8E4DF] rounded-2xl px-6 py-4 text-[#2C3330] outline-none focus:border-[#526D62] transition-all text-2xl tracking-[0.5em] text-center font-bold"
+                                                value={otp}
+                                                onChange={(e) => setOtp(e.target.value)}
+                                            />
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            disabled={loading}
+                                            className="w-full bg-[#526D62] hover:bg-[#43594f] text-white font-bold py-4 rounded-2xl shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 text-sm uppercase tracking-[0.2em]"
+                                        >
+                                            {loading ? "Verifying..." : "Verify Code"}
+                                        </button>
+                                        <button 
+                                            type="button"
+                                            onClick={() => setForgotStep(1)}
+                                            className="w-full text-[10px] font-bold text-[#707774] uppercase tracking-[0.2em] hover:text-[#2C3330] transition-colors"
+                                        >
+                                            Change Email
+                                        </button>
+                                    </form>
+                                )}
+                                {forgotStep === 3 && (
+                                    <form onSubmit={handleFinalReset} className="space-y-5">
+                                        <div className="space-y-2">
+                                            <label className="block text-[10px] font-bold text-[#707774] uppercase tracking-[0.2em] ml-1 font-sans">New Password</label>
+                                            <input
+                                                type="password"
+                                                placeholder="••••••••"
+                                                className="w-full bg-[#F8F7F4] border border-[#E8E4DF] rounded-2xl px-6 py-4 text-[#2C3330] outline-none focus:border-[#526D62] transition-all text-sm font-sans"
+                                                value={newPassword}
+                                                onChange={(e) => setNewPassword(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="block text-[10px] font-bold text-[#707774] uppercase tracking-[0.2em] ml-1 font-sans">Confirm Password</label>
+                                            <input
+                                                type="password"
+                                                placeholder="••••••••"
+                                                className="w-full bg-[#F8F7F4] border border-[#E8E4DF] rounded-2xl px-6 py-4 text-[#2C3330] outline-none focus:border-[#526D62] transition-all text-sm font-sans"
+                                                value={confirmPassword}
+                                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                            />
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            disabled={loading}
+                                            className="w-full bg-[#526D62] hover:bg-[#43594f] text-white font-bold py-4 rounded-2xl shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 text-sm uppercase tracking-[0.2em]"
+                                        >
+                                            {loading ? "Updating..." : "Update Password"}
+                                        </button>
+                                    </form>
+                                )}
+                            </div>
+                        ) : isOtpStep ? (
                             <div className="animate-[fadeIn_0.5s_ease-in-out]">
                                 <form onSubmit={submitOTP} className="space-y-6">
                                     <div>
@@ -248,7 +408,7 @@ const Auth = () => {
                                 <div className="space-y-2">
                                     <div className="flex justify-between ml-1 font-sans">
                                         <label className="text-[10px] font-bold text-[#707774] uppercase tracking-[0.2em]">Password</label>
-                                        {isLogin && <button type="button" className="text-[10px] font-bold text-[#707774] hover:text-[#526D62] uppercase tracking-widest transition-colors">Forgot password?</button>}
+                                        {isLogin && <button type="button" onClick={() => setIsForgotMode(true)} className="text-[10px] font-bold text-[#707774] hover:text-[#526D62] uppercase tracking-widest transition-colors">Forgot password?</button>}
                                     </div>
                                     <div className="relative">
                                         <input

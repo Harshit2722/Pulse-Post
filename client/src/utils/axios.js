@@ -19,6 +19,9 @@ const verifyOtp = (data) => API.post('/users/verify-otp', data);
 const resendOtp = (data) => API.post('/users/resend-otp', data);
 const loginUser = (formData) => API.post('/users/login', formData);
 const googleLogin = (idToken) => API.post('/users/google-login', { idToken });
+const forgotPasswordRequest = (email) => API.post('/users/forgot-password', { email });
+const verifyForgotPasswordOtp = (data) => API.post('/users/verify-forgot-password-otp', data);
+const resetPassword = (data) => API.post('/users/reset-password', data);
 
 const getCurrentUser = () => API.get('/users/me')
 
@@ -46,6 +49,7 @@ const editPost = (id, data) => API.patch(`/posts/${id}`, data);
 
 const fetchNotifications = () => API.get('/notifications');
 const deleteNotification = (id) => API.delete(`/notifications/${id}`);
+const clearAllNotifications = () => API.delete('/notifications/clear-all/all');
 
 const savePulse = (postId) => API.post(`/users/save/${postId}`);
 const fetchSavedPulses = (cursor = '') => API.get(`/users/saved${cursor ? `?cursor=${cursor}` : ''}`);
@@ -55,7 +59,7 @@ const fetchMyPosts = (cursor = '') => API.get(`/posts/my-posts${cursor ? `?curso
 export { 
     registerUser, verifyOtp, resendOtp, loginUser, getCurrentUser, createPost, fetchPosts, deletePost, 
     toggleLike, updateAccount, addComment, deleteComment, googleLogin, updateAvatar, removeAvatar,
-    fetchPostById, fetchNotifications, deleteNotification, editPost, savePulse, fetchSavedPulses,
-    fetchMyPosts
+    fetchPostById, fetchNotifications, deleteNotification, clearAllNotifications, editPost, savePulse, fetchSavedPulses,
+    fetchMyPosts, forgotPasswordRequest, verifyForgotPasswordOtp, resetPassword
 }
 export default API
