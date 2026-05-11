@@ -19,15 +19,21 @@ const PostDetail = () => {
     
     // Edit States
     const [isEditing, setIsEditing] = useState(false);
-    const [editForm, setEditForm] = useState({ title: "", content: "" });
+    const [editForm, setEditForm] = useState({ title: "", content: "", category: "" });
     const [updating, setUpdating] = useState(false);
+    const [isFocusMode, setIsFocusMode] = useState(false);
+    const audioRef = React.useRef(null);
 
     useEffect(() => {
         const loadPost = async () => {
             try {
                 const { data } = await fetchPostById(id);
                 setPost(data.data);
-                setEditForm({ title: data.data.title, content: data.data.content });
+                setEditForm({ 
+                    title: data.data.title, 
+                    content: data.data.content,
+                    category: data.data.category || 'General'
+                });
             } catch (err) {
                 toast.error(err.response?.data?.message || "Pulse could not be found");
                 navigate('/dashboard');
@@ -142,6 +148,17 @@ const PostDetail = () => {
         }
     };
 
+    const toggleFocusMode = () => {
+        setIsFocusMode(!isFocusMode);
+        if (!isFocusMode) {
+            audioRef.current?.play();
+            toast.success("Focus Mode Active. Breathe in. 🌿", { duration: 3000 });
+        } else {
+            audioRef.current?.pause();
+        }
+    };
+
+
     if (loading) return (
         <div className="min-h-screen bg-[#F8F7F4] flex items-center justify-center">
             <div className="flex flex-col items-center space-y-4">
@@ -162,10 +179,27 @@ const PostDetail = () => {
     );
 
     return (
-        <div className="min-h-screen bg-[#F8F7F4] font-['Instrument_Sans'] text-[#2C3330] selection:bg-[#526D62] selection:text-white">
+        <div className={`min-h-screen transition-all duration-1000 ${isFocusMode ? 'zen-breathing' : 'bg-[#F8F7F4]'} font-['Instrument_Sans'] text-[#2C3330] selection:bg-[#526D62] selection:text-white`}>
+            {/* Ambient Sound */}
+            <audio ref={audioRef} loop>
+                <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg" />
+            </audio>
+
+            {/* Exit Focus Mode Button */}
+            {isFocusMode && (
+                <button 
+                    onClick={toggleFocusMode}
+                    className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[100] bg-[#2C3330] text-white px-8 py-4 rounded-full text-xs font-black uppercase tracking-[0.2em] shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center space-x-3 focus-fade-in"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    <span>Exit Focus Mode</span>
+                </button>
+            )}
             
             {/* Header Navigation */}
-            <nav className="h-20 px-10 flex items-center justify-between sticky top-0 bg-[#F8F7F4]/90 backdrop-blur-xl z-50 border-b border-[#E8E4DF]/50">
+            <nav className={`h-20 px-10 flex items-center justify-between sticky top-0 bg-[#F8F7F4]/90 backdrop-blur-xl z-50 border-b border-[#E8E4DF]/50 transition-all duration-700 ${isFocusMode ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
                 <div 
                     onClick={() => navigate('/dashboard')} 
                     className="flex items-center space-x-3 cursor-pointer group"
@@ -193,14 +227,25 @@ const PostDetail = () => {
                         </button>
                     )}
                     <NotificationTray />
+                    <button 
+                        onClick={toggleFocusMode}
+                        className="p-2 text-[#707774] hover:text-[#526D62] transition-colors relative group"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
+                        </svg>
+                        <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-[#2C3330] text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                            Ambient Focus
+                        </span>
+                    </button>
                     <Avatar src={user?.avatar} name={user?.name} className="w-10 h-10 rounded-full border-2 border-[#E8E4DF] object-cover cursor-pointer hover:border-[#526D62] transition-all" />
                 </div>
             </nav>
 
-            <main className="max-w-7xl mx-auto px-10 py-12 grid grid-cols-12 gap-16">
+            <main className={`max-w-7xl mx-auto px-10 py-12 transition-all duration-1000 ${isFocusMode ? 'max-w-4xl py-32' : 'grid grid-cols-12 gap-16'}`}>
                 
                 {/* Left Column: Post Content */}
-                <div className="col-span-8 space-y-12">
+                <div className={`transition-all duration-1000 ${isFocusMode ? 'w-full space-y-20' : 'col-span-8 space-y-12'}`}>
                     <div className="relative group overflow-hidden rounded-[2.5rem] shadow-2xl border border-[#E8E4DF] bg-black/5">
                         <img 
                             src={post.image || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&q=80&w=2000'} 
@@ -248,6 +293,22 @@ const PostDetail = () => {
                                         value={editForm.title}
                                         onChange={(e) => setEditForm({...editForm, title: e.target.value})}
                                     />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-[#707774] uppercase tracking-widest">Category</label>
+                                    <select 
+                                        className="w-full bg-[#F8F7F4] border border-[#E8E4DF] rounded-2xl px-6 py-4 outline-none focus:border-[#526D62] transition-all text-sm font-bold uppercase tracking-widest text-[#526D62]"
+                                        value={editForm.category}
+                                        onChange={(e) => setEditForm({...editForm, category: e.target.value})}
+                                    >
+                                        <option value="General">General</option>
+                                        <option value="Lifestyle">Lifestyle</option>
+                                        <option value="Photography">Photography</option>
+                                        <option value="Technology">Technology</option>
+                                        <option value="Travel">Travel</option>
+                                        <option value="Art">Art</option>
+                                        <option value="Wellness">Wellness</option>
+                                    </select>
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-[#707774] uppercase tracking-widest">Content</label>
@@ -332,7 +393,7 @@ const PostDetail = () => {
                 </div>
 
                 {/* Right Column: Sidebar */}
-                <aside className="col-span-4 space-y-10 sticky top-32 h-fit">
+                <aside className={`transition-all duration-700 ${isFocusMode ? 'opacity-0 h-0 overflow-hidden pointer-events-none' : 'col-span-4 space-y-10 sticky top-32 h-fit opacity-100'}`}>
                     
                     {/* Author Card */}
                     <div className="bg-[#F1EFEA]/50 rounded-[3rem] p-10 border border-[#E8E4DF] flex flex-col items-center text-center group transition-all hover:bg-white hover:shadow-xl">

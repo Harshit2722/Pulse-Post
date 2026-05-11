@@ -69,10 +69,12 @@ const CreatePost = () => {
                             onChange={(e) => setForm({...form, category: e.target.value})}
                         >
                             <option value="General">General</option>
-                            <option value="Thought">Thought</option>
-                            <option value="Update">Update</option>
-                            <option value="Idea">Idea</option>
+                            <option value="Lifestyle">Lifestyle</option>
                             <option value="Photography">Photography</option>
+                            <option value="Technology">Technology</option>
+                            <option value="Travel">Travel</option>
+                            <option value="Art">Art</option>
+                            <option value="Wellness">Wellness</option>
                         </select>
                     </div>
 
