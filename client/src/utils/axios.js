@@ -15,6 +15,8 @@ API.interceptors.request.use((config) => {
 });
 
 const registerUser = (formData) => API.post('/users/register', formData);
+const verifyOtp = (data) => API.post('/users/verify-otp', data);
+const resendOtp = (data) => API.post('/users/resend-otp', data);
 const loginUser = (formData) => API.post('/users/login', formData);
 const googleLogin = (idToken) => API.post('/users/google-login', { idToken });
 
@@ -49,7 +51,7 @@ const fetchSavedPulses = () => API.get('/users/saved');
 const fetchMyPosts = () => API.get('/posts/my-posts');
 
 export { 
-    registerUser, loginUser, getCurrentUser, createPost, fetchPosts, deletePost, 
+    registerUser, verifyOtp, resendOtp, loginUser, getCurrentUser, createPost, fetchPosts, deletePost, 
     toggleLike, updateAccount, addComment, deleteComment, googleLogin, updateAvatar, 
     fetchPostById, fetchNotifications, deleteNotification, editPost, savePulse, fetchSavedPulses,
     fetchMyPosts
