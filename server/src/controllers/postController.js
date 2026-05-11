@@ -50,10 +50,15 @@ const createPost = asyncHandler(async (req, res) => {
 });
 
 const getAllPosts = asyncHandler(async (req, res) => {
-    const { cursor, limit = 8 } = req.query;
+    const { cursor, limit = 8, category } = req.query;
     const fetchLimit = Number(limit);
 
     let query = { author: { $ne: req.user._id } };
+    
+    if (category && category !== 'All') {
+        query.category = category;
+    }
+
     if (cursor) {
         // If cursor exists, we need to AND it with the author filter
         query = {

@@ -27,7 +27,14 @@ const getCurrentUser = () => API.get('/users/me')
 
 const createPost = (postData) => API.post("/posts/create", postData);
 
-const fetchPosts = (cursor = '') => API.get(`/posts${cursor ? `?cursor=${cursor}` : ''}`);
+const fetchPosts = (cursor = '', category = '') => {
+    const params = new URLSearchParams();
+    if (cursor && cursor !== 'null') params.append('cursor', cursor);
+    if (category && category !== 'All') params.append('category', category);
+    
+    const queryString = params.toString();
+    return API.get(`/posts${queryString ? `?${queryString}` : ''}`);
+};
 
 const fetchPostById = (id) => API.get(`/posts/${id}`);
 

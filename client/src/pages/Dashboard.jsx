@@ -19,6 +19,8 @@ const Dashboard = () => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [nextCursor, setNextCursor] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [selectedCategory, setSelectedCategory] = useState('All');
+    const categories = ['All', 'General', 'Lifestyle', 'Photography', 'Technology', 'Travel', 'Art', 'Wellness'];
 
     const navigate = useNavigate();
 
@@ -37,7 +39,7 @@ const Dashboard = () => {
                 if (activeTab === 'Feed') {
                     response = await fetchMyPosts(currentCursor);
                 } else if (activeTab === 'Explore') {
-                    response = await fetchPosts(currentCursor);
+                    response = await fetchPosts(currentCursor, selectedCategory);
                 } else {
                     setLoading(false);
                     return;
@@ -51,7 +53,7 @@ const Dashboard = () => {
             }
         };
         loadPosts();
-    }, [activeTab, currentIndex]);
+    }, [activeTab, currentIndex, selectedCategory]);
 
     const handleNext = () => {
         if (nextCursor) {
@@ -269,6 +271,28 @@ const Dashboard = () => {
                             <Avatar src={user?.avatar} name={user?.name} className="w-10 h-10 rounded-full object-cover" />
                         </div>
                     </div>
+
+                    {activeTab === 'Explore' && (
+                        <div className="flex items-center space-x-3 overflow-x-auto pt-8 pb-2 scrollbar-hide no-scrollbar">
+                            {categories.map((cat) => (
+                                <button
+                                    key={cat}
+                                    onClick={() => {
+                                        setSelectedCategory(cat);
+                                        setCursorHistory([null]);
+                                        setCurrentIndex(0);
+                                    }}
+                                    className={`px-6 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap border ${
+                                        selectedCategory === cat 
+                                        ? 'bg-[#526D62] text-white border-[#526D62] shadow-md' 
+                                        : 'bg-white text-[#707774] border-[#E8E4DF] hover:border-[#526D62] hover:text-[#526D62]'
+                                    }`}
+                                >
+                                    {cat}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 <div className="px-12 pb-20 mt-10">
