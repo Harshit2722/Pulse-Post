@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import PostDetail from './pages/PostDetail';
 import SavedPosts from './pages/SavedPosts';
+import MyPulses from './pages/MyPulses';
 
 const ProtectedRoute = ({ children }) => {
     const { user, loading } = useAuth();
@@ -32,6 +33,7 @@ export default function App() {
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard/></ProtectedRoute>} />
             <Route path="/post/:id" element={<ProtectedRoute><PostDetail/></ProtectedRoute>} />
             <Route path="/library" element={<ProtectedRoute><SavedPosts/></ProtectedRoute>} />
+            <Route path="/my-pulses" element={<ProtectedRoute><MyPulses/></ProtectedRoute>} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

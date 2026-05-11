@@ -247,5 +247,16 @@ const updatePost = asyncHandler(async (req, res) => {
     );
 });
 
-module.exports = { createPost, getAllPosts, deletePost, toggleLike, addComment, postById, deleteComment, updatePost };
+const getMyPosts = asyncHandler(async (req, res) => {
+    const posts = await Post.find({ author: req.user._id })
+        .populate("author", "name avatar")
+        .sort({ createdAt: -1 })
+        .lean();
+
+    return res.status(200).json(
+        new ApiResponse(200, posts, "Your pulses loaded")
+    );
+});
+
+module.exports = { createPost, getAllPosts, deletePost, toggleLike, addComment, postById, deleteComment, updatePost, getMyPosts };
 

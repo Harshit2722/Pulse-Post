@@ -46,9 +46,12 @@ const deleteNotification = (id) => API.delete(`/notifications/${id}`);
 const savePulse = (postId) => API.post(`/users/save/${postId}`);
 const fetchSavedPulses = () => API.get('/users/saved');
 
+const fetchMyPosts = () => API.get('/posts/my-posts');
+
 export { 
     registerUser, loginUser, getCurrentUser, createPost, fetchPosts, deletePost, 
     toggleLike, updateAccount, addComment, deleteComment, googleLogin, updateAvatar, 
-    fetchPostById, fetchNotifications, deleteNotification, editPost, savePulse, fetchSavedPulses
+    fetchPostById, fetchNotifications, deleteNotification, editPost, savePulse, fetchSavedPulses,
+    fetchMyPosts
 }
 export default API

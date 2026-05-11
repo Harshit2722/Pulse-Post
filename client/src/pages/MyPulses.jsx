@@ -1,39 +1,51 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchSavedPulses, toggleLike } from '../utils/axios';
+import { fetchMyPosts, deletePost, toggleLike } from '../utils/axios';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import NotificationTray from '../components/NotificationTray';
 
-const SavedPosts = () => {
-    const [savedPulses, setSavedPulses] = useState([]);
+const MyPulses = () => {
+    const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
     const { user, logout } = useAuth();
 
     useEffect(() => {
-        const loadSaved = async () => {
+        const loadPosts = async () => {
             try {
-                const { data } = await fetchSavedPulses();
-                setSavedPulses(data.data);
+                const { data } = await fetchMyPosts();
+                setPosts(data.data);
             } catch (err) {
-                toast.error("Failed to load your library");
+                toast.error("Failed to load your pulses");
             } finally {
                 setLoading(false);
             }
         };
-        loadSaved();
+        loadPosts();
     }, []);
 
     const handleHeart = async (id, e) => {
         e.stopPropagation();
         try {
             const { data } = await toggleLike(id);
-            setSavedPulses(prev => prev.map(p => 
+            setPosts(prev => prev.map(p => 
                 p._id === id ? { ...p, likes: data.data.likes } : p
             ));
         } catch (err) {
             toast.error("Failed to heart pulse");
+        }
+    };
+
+    const handleDelete = async (id, e) => {
+        e.stopPropagation();
+        if (!window.confirm("Delete this pulse permanently?")) return;
+        try {
+            await deletePost(id);
+            setPosts(prev => prev.filter(p => p._id !== id));
+            toast.success("Pulse removed");
+        } catch (err) {
+            toast.error("Failed to remove pulse");
         }
     };
 
@@ -57,13 +69,13 @@ const SavedPosts = () => {
                     <button onClick={() => navigate('/dashboard')} className="flex items-center space-x-3 w-full px-5 py-3 rounded-2xl text-[#707774] hover:bg-white/50 transition-all">
                         <span className="text-sm font-bold">Dashboard</span>
                     </button>
-                    <button onClick={() => navigate('/my-pulses')} className="flex items-center space-x-3 w-full px-5 py-3 rounded-2xl text-[#707774] hover:bg-white/50 transition-all">
+                    <button className="flex items-center space-x-3 w-full px-5 py-3 rounded-2xl bg-[#526D62] text-white shadow-lg transition-all">
                         <span className="text-sm font-bold">My Pulses</span>
                     </button>
                     <button onClick={() => navigate('/dashboard', { state: { activeTab: 'Explore' } })} className="flex items-center space-x-3 w-full px-5 py-3 rounded-2xl text-[#707774] hover:bg-white/50 transition-all">
                         <span className="text-sm font-bold">Explore</span>
                     </button>
-                    <button className="flex items-center space-x-3 w-full px-5 py-3 rounded-2xl bg-[#526D62] text-white shadow-lg transition-all">
+                    <button onClick={() => navigate('/library')} className="flex items-center space-x-3 w-full px-5 py-3 rounded-2xl text-[#707774] hover:bg-white/50 transition-all">
                         <span className="text-sm font-bold">Saved Posts</span>
                     </button>
                     <button onClick={() => navigate('/dashboard', { state: { activeTab: 'Settings' } })} className="flex items-center space-x-3 w-full px-5 py-3 rounded-2xl text-[#707774] hover:bg-white/50 transition-all">
@@ -81,8 +93,8 @@ const SavedPosts = () => {
                 <div className="px-12 py-12 border-b border-[#E8E4DF]">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h2 className="text-4xl font-bold text-[#2C3330] tracking-tight">Saved Posts</h2>
-                            <p className="text-[#707774] mt-1 text-lg">Curated stories you've saved for later.</p>
+                            <h2 className="text-4xl font-bold text-[#2C3330] tracking-tight">Your Pulses</h2>
+                            <p className="text-[#707774] mt-1 text-lg">Every story you've broadcasted to the network.</p>
                         </div>
                         <div className="flex items-center space-x-6">
                             <NotificationTray />
@@ -96,29 +108,37 @@ const SavedPosts = () => {
                         <div className="flex justify-center py-20">
                             <div className="w-10 h-10 border-4 border-[#526D62]/20 border-t-[#526D62] rounded-full animate-spin"></div>
                         </div>
-                    ) : savedPulses.length === 0 ? (
+                    ) : posts.length === 0 ? (
                         <div className="text-center py-20 bg-white rounded-[3rem] border border-dashed border-[#E8E4DF]">
-                            <p className="text-[#707774] font-medium italic">Your library is empty. Discover pulses and save them here.</p>
+                            <p className="text-[#707774] font-medium italic">You haven't shared any pulses yet.</p>
                             <button 
                                 onClick={() => navigate('/dashboard')}
                                 className="mt-6 px-8 py-3 bg-[#526D62] text-white rounded-full text-sm font-bold uppercase tracking-widest hover:bg-[#43594f] transition-all"
                             >
-                                Browse Feed
+                                Create First Pulse
                             </button>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                            {savedPulses.map((pulse) => (
+                            {posts.map((pulse) => (
                                 <div 
                                     key={pulse._id}
                                     onClick={() => navigate(`/post/${pulse._id}`)}
-                                    className="bg-white rounded-[2.5rem] overflow-hidden border border-[#E8E4DF] hover:shadow-2xl transition-all group cursor-pointer"
+                                    className="bg-white rounded-[2.5rem] overflow-hidden border border-[#E8E4DF] hover:shadow-2xl transition-all group cursor-pointer relative"
                                 >
                                     <div className="h-48 overflow-hidden relative">
                                         <img src={pulse.image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                                         <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest text-[#526D62]">
                                             {pulse.category}
                                         </div>
+                                        <button 
+                                            onClick={(e) => handleDelete(pulse._id, e)}
+                                            className="absolute top-4 left-4 bg-red-500/80 backdrop-blur-sm p-2 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-red-600 shadow-lg"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                            </svg>
+                                        </button>
                                     </div>
                                     <div className="p-8">
                                         <h3 className="text-xl font-bold mb-3 group-hover:text-[#526D62] transition-colors line-clamp-1">{pulse.title}</h3>
@@ -152,4 +172,4 @@ const SavedPosts = () => {
     );
 };
 
-export default SavedPosts;
+export default MyPulses;

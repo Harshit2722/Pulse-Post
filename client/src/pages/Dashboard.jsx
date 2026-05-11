@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { fetchPosts, deletePost, toggleLike, addComment, updateAccount, updateAvatar } from '../utils/axios';
+import { fetchPosts, deletePost, toggleLike, addComment, updateAccount, updateAvatar, fetchMyPosts } from '../utils/axios';
 import CreatePost from '../components/CreatePost';
 import { toast } from 'react-hot-toast';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -10,30 +10,37 @@ const Dashboard = () => {
     const { user, socket, logout, login } = useAuth();
     const location = useLocation();
     const [posts, setPosts] = useState([]);
-    const [expandedComments, setExpandedComments] = useState(null);
-    const [commentText, setCommentText] = useState("");
     const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'Feed');
     const [settingsForm, setSettingsForm] = useState({ name: user?.name || '', password: '' });
     const [updating, setUpdating] = useState(false);
+    const [showCreateModal, setShowCreateModal] = useState(false);
 
     const navigate = useNavigate();
 
-    const hasFetched = useRef(false);
+    useEffect(() => {
+        if (location.state?.activeTab) {
+            setActiveTab(location.state.activeTab);
+        }
+    }, [location.state]);
 
     useEffect(() => {
         const loadPosts = async () => {
-            if (hasFetched.current) return;
-            hasFetched.current = true;
-
             try {
-                const { data } = await fetchPosts();
-                setPosts(data.data);
+                let response;
+                if (activeTab === 'Feed') {
+                    response = await fetchMyPosts();
+                } else if (activeTab === 'Explore') {
+                    response = await fetchPosts();
+                } else {
+                    return;
+                }
+                setPosts(response.data.data);
             } catch (err) {
-                toast.error("Failed to load feed");
+                toast.error("Failed to load pulses");
             }
         };
         loadPosts();
-    }, []);
+    }, [activeTab]);
 
     const handleUpdateSettings = async (e) => {
         e.preventDefault();
@@ -67,49 +74,26 @@ const Dashboard = () => {
         }
     };
 
-    const submitComment = async (postId) => {
-        if (!commentText.trim()) return;
-        try {
-            const { data } = await addComment(postId, commentText);
-            setPosts(prev => prev.map(p =>
-                p._id === postId ? { ...p, comments: data.data } : p
-            ));
-            setCommentText("");
-            toast.success("Reflection added");
-        } catch (err) {
-            toast.error("Failed to add comment");
-        }
-    };
-
     useEffect(() => {
         if (!socket) return;
+        
         socket.on("new-post", (data) => {
-            setPosts(prev => [data.post, ...prev]);
+            if (activeTab === 'Explore' || data.post.author._id === user?._id) {
+                setPosts(prev => [data.post, ...prev]);
+            }
             if (data.post.author._id !== user?._id) {
                 toast(data.message, { icon: '✨', id: `new-${data.post._id}` });
             }
         });
 
         socket.on("post-deleted", (id) => {
-            setPosts((prevPosts) => {
-                const postToDelete = prevPosts.find(p => p._id === id);
-                if (postToDelete) {
-                    if (postToDelete.author._id === user?._id) {
-                        toast.success("Pulse removed", { id: `del-${id}` });
-                    } else {
-                        toast(`${postToDelete.author.name} deleted a pulse`, { icon: '🗑️', id: `del-${id}` });
-                    }
-                }
-                return prevPosts.filter(p => p._id !== id);
-            });
+            setPosts(prev => prev.filter(p => p._id !== id));
         });
 
         socket.on("update-likes", (data) => {
-            setPosts(prev => {
-                return prev.map(p =>
-                    p._id === data.postId ? { ...p, likes: data.likes } : p
-                );
-            });
+            setPosts(prev => prev.map(p =>
+                p._id === data.postId ? { ...p, likes: data.likes } : p
+            ));
         });
 
         socket.on("new-comment", (data) => {
@@ -124,32 +108,35 @@ const Dashboard = () => {
             socket.off("update-likes");
             socket.off("new-comment");
         };
-    }, [socket, user]);
-
-    const handleDelete = async (postId) => {
-        if (!window.confirm("Delete this pulse?")) return;
-        try {
-            await deletePost(postId);
-        } catch (err) {
-            toast.error("Failed to delete pulse");
-        }
-    };
-
-    const handleLike = async (postId) => {
-        try {
-            await toggleLike(postId);
-        } catch (err) {
-            toast.error("Failed to update like");
-        }
-    };
+    }, [socket, user, activeTab]);
 
     return (
         <div className="min-h-screen bg-[#F8F7F4] flex font-['Instrument_Sans']">
 
+            {/* CREATE POST MODAL */}
+            {showCreateModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowCreateModal(false)}></div>
+                    <div className="bg-white rounded-[3rem] w-full max-w-2xl relative z-10 shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+                        <div className="p-10">
+                            <div className="flex items-center justify-between mb-8">
+                                <h3 className="text-2xl font-bold tracking-tighter">Broadcast a New Pulse</h3>
+                                <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-[#F8F7F4] rounded-full transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <CreatePost onSuccess={() => setShowCreateModal(false)} />
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Sidebar Navigation */}
             <aside className="w-64 bg-[#F1EFEA] border-r border-[#E8E4DF] flex flex-col p-8 fixed h-full z-10">
                 <div className="mb-12">
-                    <div className="flex items-center space-x-3 text-[#2C3330]">
+                    <div className="flex items-center space-x-3 text-[#2C3330]" onClick={() => navigate('/dashboard')} style={{cursor: 'pointer'}}>
                         <div className="flex items-center">
                             <div className="w-2 h-2 bg-[#2C3330] rounded-full"></div>
                             <div className="w-2 h-2 bg-[#2C3330] rounded-full -ml-1 mt-1.5"></div>
@@ -157,25 +144,45 @@ const Dashboard = () => {
                         </div>
                         <h1 className="text-lg font-black tracking-tighter uppercase font-sans">PULSE-POST</h1>
                     </div>
-                    <p className="text-[10px] text-[#707774] uppercase tracking-widest font-bold mt-1 ml-1">Creator Network</p>
                 </div>
 
                 <nav className="space-y-3 flex-1">
                     <button
-                        onClick={() => setActiveTab('Feed')}
-                        className={`flex items-center space-x-3 w-full px-5 py-3 rounded-2xl transition-all ${activeTab === 'Feed' ? 'bg-[#526D62] text-white shadow-lg' : 'text-[#707774] hover:bg-white/50'}`}
+                        onClick={() => {
+                            setActiveTab('Feed');
+                            if(window.location.pathname !== '/dashboard') navigate('/dashboard');
+                        }}
+                        className={`flex items-center space-x-3 w-full px-5 py-3 rounded-2xl transition-all ${activeTab === 'Feed' && window.location.pathname === '/dashboard' ? 'bg-[#526D62] text-white shadow-lg' : 'text-[#707774] hover:bg-white/50'}`}
                     >
-                        <span className="text-sm font-bold">Feed</span>
+                        <span className="text-sm font-bold">Dashboard</span>
+                    </button>
+                    <button
+                        onClick={() => navigate('/my-pulses')}
+                        className={`flex items-center space-x-3 w-full px-5 py-3 rounded-2xl transition-all ${window.location.pathname === '/my-pulses' ? 'bg-[#526D62] text-white shadow-lg' : 'text-[#707774] hover:bg-white/50'}`}
+                    >
+                        <span className="text-sm font-bold">My Pulses</span>
+                    </button>
+                    <button
+                        onClick={() => {
+                            setActiveTab('Explore');
+                            if(window.location.pathname !== '/dashboard') navigate('/dashboard', { state: { activeTab: 'Explore' } });
+                        }}
+                        className={`flex items-center space-x-3 w-full px-5 py-3 rounded-2xl transition-all ${activeTab === 'Explore' && window.location.pathname === '/dashboard' ? 'bg-[#526D62] text-white shadow-lg' : 'text-[#707774] hover:bg-white/50'}`}
+                    >
+                        <span className="text-sm font-bold">Explore</span>
                     </button>
                     <button
                         onClick={() => navigate('/library')}
                         className={`flex items-center space-x-3 w-full px-5 py-3 rounded-2xl transition-all ${window.location.pathname === '/library' ? 'bg-[#526D62] text-white shadow-lg' : 'text-[#707774] hover:bg-white/50'}`}
                     >
-                        <span className="text-sm font-bold">Library</span>
+                        <span className="text-sm font-bold">Saved Posts</span>
                     </button>
                     <button
-                        onClick={() => setActiveTab('Settings')}
-                        className={`flex items-center space-x-3 w-full px-5 py-3 rounded-2xl transition-all ${activeTab === 'Settings' ? 'bg-[#526D62] text-white shadow-lg' : 'text-[#707774] hover:bg-white/50'}`}
+                        onClick={() => {
+                            setActiveTab('Settings');
+                            if(window.location.pathname !== '/dashboard') navigate('/dashboard', { state: { activeTab: 'Settings' } });
+                        }}
+                        className={`flex items-center space-x-3 w-full px-5 py-3 rounded-2xl transition-all ${activeTab === 'Settings' && window.location.pathname === '/dashboard' ? 'bg-[#526D62] text-white shadow-lg' : 'text-[#707774] hover:bg-white/50'}`}
                     >
                         <span className="text-sm font-bold">Settings</span>
                     </button>
@@ -191,10 +198,25 @@ const Dashboard = () => {
 
                 <div className="px-12 py-12 border-b border-[#E8E4DF]">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-4xl font-bold text-[#2C3330] tracking-tight">
-                            Welcome back, <span className="text-[#526D62] italic font-serif ">{user?.name.charAt(0).toUpperCase() + user?.name.slice(1)}</span>
-                        </h2>
+                        <div>
+                            <h2 className="text-4xl font-bold text-[#2C3330] tracking-tight">
+                                {activeTab === 'Explore' ? 'Explore Pulses' : activeTab === 'Settings' ? 'Account' : `Welcome back, `}
+                                {activeTab === 'Feed' && <span className="text-[#526D62] italic font-serif ">{user?.name.charAt(0).toUpperCase() + user?.name.slice(1)}</span>}
+                            </h2>
+                            <p className="text-[#707774] mt-1 text-lg">
+                                {activeTab === 'Explore' ? 'Discover what the community is sharing.' : activeTab === 'Settings' ? 'Manage your creator identity.' : 'Your creator workspace is ready.'}
+                            </p>
+                        </div>
                         <div className="flex items-center space-x-6">
+                            <button 
+                                onClick={() => setShowCreateModal(true)}
+                                className="bg-[#526D62] text-white px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-[#43594f] transition-all shadow-lg flex items-center space-x-2"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                </svg>
+                                <span>Create Pulse</span>
+                            </button>
                             <NotificationTray />
                             {user?.avatar && (
                                 <div className="relative p-[3px] rounded-full bg-gradient-to-tr from-[#4285F4] via-[#EA4335] to-[#FBBC05] animate-gradient-x shadow-sm">
@@ -202,95 +224,81 @@ const Dashboard = () => {
                                         <img
                                             src={user.avatar}
                                             alt={user.name}
-                                            className="w-12 h-12 rounded-full object-cover"
+                                            className="w-10 h-10 rounded-full object-cover"
                                         />
                                     </div>
                                 </div>
                             )}
                         </div>
                     </div>
-                    <p className="text-[#707774] mt-1 text-lg">Your creator workspace is ready.</p>
                 </div>
 
-                <div className="px-12 grid grid-cols-12 gap-8 pb-20 mt-10">
+                <div className="px-12 pb-20 mt-10">
 
-                    {activeTab === 'Feed' ? (
-                        <>
-                            {/* CENTER FEED */}
-                            <div className="col-span-8 space-y-12">
-                                <div className="bg-white rounded-[2.5rem] p-2 shadow-sm border border-[#E8E4DF]">
-                                    <CreatePost />
-                                </div>
-                                {/* RECENT PULSES GALLERY */}
-                                <div className="space-y-8">
-                                    <div className="flex items-center justify-between px-4">
-                                        <h3 className="text-2xl font-bold text-[#2C3330] tracking-tighter">Recent Pulses</h3>
+                    {(activeTab === 'Feed' || activeTab === 'Explore') ? (
+                        <div className="space-y-12">
+                            <div className="space-y-8">
+                                <div className="flex items-center justify-between px-4">
+                                    <h3 className="text-2xl font-bold text-[#2C3330] tracking-tighter">
+                                        {activeTab === 'Feed' ? 'Recent Activity' : 'Global Network'}
+                                    </h3>
+                                    {activeTab === 'Feed' && posts.length > 0 && (
                                         <button 
-                                            onClick={() => setActiveTab('Settings')} // Or create a new tab for 'Gallery'
+                                            onClick={() => navigate('/my-pulses')}
                                             className="text-[10px] font-black uppercase tracking-[0.2em] text-[#526D62] hover:underline transition-all"
                                         >
-                                            View Full Gallery →
+                                            View All Stories →
                                         </button>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-8">
-                                        {posts.slice(0, 4).map(post => (
+                                    )}
+                                </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                                        {(activeTab === 'Feed' ? posts.slice(0, 4) : posts.filter(p => p.author?._id !== user?._id)).map(post => (
                                             <div 
                                                 key={post._id} 
                                                 onClick={() => navigate(`/post/${post._id}`)}
                                                 className="group aspect-square relative rounded-[2.5rem] overflow-hidden border border-[#E8E4DF] shadow-sm hover:shadow-2xl transition-all duration-700 cursor-pointer"
                                             >
-                                                {/* Background Image */}
-                                                <img 
-                                                    src={post.image || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&q=80&w=1000'} 
-                                                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                                                    alt={post.title} 
-                                                />
-                                                
-                                                {/* Immersive Hover Overlay */}
-                                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-100 transition-opacity duration-500"></div>
-                                                
-                                                {/* Content */}
-                                                <div className="absolute inset-0 p-8 flex flex-col justify-end">
-                                                    <div className="translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                                                        <div className="flex items-center space-x-2 mb-3">
-                                                            <span className="bg-white/20 backdrop-blur-md text-white text-[8px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">
-                                                                {post.category}
-                                                            </span>
-                                                        </div>
-                                                        <h4 className="text-white text-xl font-bold leading-tight line-clamp-2">
-                                                            {post.title}
-                                                        </h4>
-                                                        <p className="text-white/60 text-xs mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500 line-clamp-1">
-                                                            {new Date(post.createdAt).toLocaleDateString()} • Click to expand
-                                                        </p>
+                                            <img 
+                                                src={post.image || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&q=80&w=1000'} 
+                                                className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                                                alt={post.title} 
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                            <div className="absolute inset-0 p-8 flex flex-col justify-end">
+                                                <div className="translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                                                    <div className="flex items-center space-x-2 mb-3">
+                                                        <span className="bg-white/20 backdrop-blur-md text-white text-[8px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">
+                                                            {post.category}
+                                                        </span>
                                                     </div>
+                                                    <h4 className="text-white text-lg font-bold leading-tight line-clamp-2">
+                                                        {post.title}
+                                                    </h4>
+                                                    {activeTab === 'Explore' && (
+                                                        <div className="flex items-center space-x-2 mt-4">
+                                                            <img src={post.author?.avatar} className="w-5 h-5 rounded-full object-cover" />
+                                                            <span className="text-white/60 text-[10px] font-bold uppercase tracking-widest">{post.author?.name}</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
-                                        ))}
-                                        {posts.length === 0 && (
-                                            <div className="col-span-2 py-20 text-center border-2 border-dashed border-[#E8E4DF] rounded-[2.5rem]">
-                                                <p className="text-[#707774] italic">Your gallery is empty. Start by broadcasting a pulse!</p>
-                                            </div>
-                                        )}
-                                    </div>
+                                        </div>
+                                    ))}
+                                    {posts.length === 0 && (
+                                        <div className="col-span-full py-20 text-center border-2 border-dashed border-[#E8E4DF] rounded-[3rem] bg-white/50">
+                                            <p className="text-[#707774] italic">
+                                                {activeTab === 'Feed' ? "Your gallery is empty. Start by broadcasting a pulse!" : "No pulses found in the network yet."}
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-
-                            {/* RIGHT COLUMN */}
-                            <div className="col-span-4 space-y-8">
-                                <div className="bg-[#526D62] rounded-[2.5rem] p-10 text-white relative overflow-hidden shadow-2xl">
-                                    <h5 className="text-xl font-bold mb-3 relative z-10">Creator Tip</h5>
-                                    <p className="text-white/70 text-sm leading-relaxed relative z-10">Regular pulses with a consistent category help your audience resonate with your story.</p>
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-                                </div>
-                            </div>
-                        </>
+                        </div>
                     ) : (
                         /* SETTINGS VIEW */
-                        <div className="col-span-8 bg-white rounded-[2.5rem] p-12 border border-[#E8E4DF] shadow-sm">
+                        <div className="max-w-4xl bg-white rounded-[3rem] p-12 border border-[#E8E4DF] shadow-sm">
                             <h3 className="text-3xl font-bold text-[#2C3330] mb-8 tracking-tighter">Account Settings</h3>
                             
-                            {/* 📸 AVATAR SECTION */}
                             <div className="flex items-center space-x-6 mb-10">
                                 <div className="relative group">
                                     <div className="relative p-[3px] rounded-full bg-gradient-to-tr from-[#4285F4] via-[#EA4335] to-[#FBBC05] shadow-sm">
