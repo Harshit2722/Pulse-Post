@@ -11,9 +11,6 @@ const postSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    image: {
-        type: String,
-    },
     category: {
         type: String,
         default: 'General'
@@ -29,9 +26,9 @@ const postSchema = new mongoose.Schema({
             ref: 'User'
         }
     ],
-    views: {
-        type: Number,
-        default: 0
+    image: {
+        type: String,
+        default: ""
     },
     comments: [
         {

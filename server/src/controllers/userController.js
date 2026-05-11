@@ -4,6 +4,8 @@ const ApiResponse = require("../utils/ApiResponse");
 const User = require("../models/userModel");
 const { OAuth2Client } = require('google-auth-library');
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const {uploadToCloudinary} = require("../utils/cloudinary");
+
 
 const registerUser = asyncHandler(async (req, res) => {
     const { name, email, password } = req.body;
@@ -110,4 +112,71 @@ const updateAccount = asyncHandler(async (req, res) => {
     );
 });
 
-module.exports = { registerUser, loginUser, googleLogin, getCurrentUser, updateAccount };
+
+const updateAvatar = asyncHandler(async (req,res)=>{
+
+    if(!req.file){
+        throw new ApiError(400, "No file uploaded");
+    }
+
+    const localFilePath = req.file?.path;
+
+    if(!localFilePath){
+        throw new ApiError(400, "Avatar file is missing");
+    }
+
+
+    const avatar = await uploadToCloudinary(localFilePath);
+
+    if(!avatar){
+        throw new ApiError(500, "Failed to upload avatar");
+    }
+
+
+    const user = await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set: {
+                avatar: avatar.url
+            }
+        },
+        { new: true }
+    ).select("-password");
+
+    return res.status(200).json(
+        new ApiResponse(200, user, "Avatar updated successfully")
+    );
+    
+})
+
+const toggleSavePost = asyncHandler(async (req, res) => {
+    const { postId } = req.params;
+    const user = await User.findById(req.user._id);
+
+    const isSaved = user.savedPosts.includes(postId);
+
+    if (isSaved) {
+        user.savedPosts = user.savedPosts.filter(id => id.toString() !== postId);
+    } else {
+        user.savedPosts.push(postId);
+    }
+
+    await user.save();
+
+    return res.status(200).json(
+        new ApiResponse(200, user.savedPosts, isSaved ? "Removed from library" : "Saved to library")
+    );
+});
+
+const getSavedPosts = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user._id).populate({
+        path: 'savedPosts',
+        populate: { path: 'author', select: 'name avatar' }
+    });
+
+    return res.status(200).json(
+        new ApiResponse(200, user.savedPosts, "Saved pulses fetched")
+    );
+});
+
+module.exports = { registerUser, loginUser, googleLogin, getCurrentUser, updateAccount, updateAvatar, toggleSavePost, getSavedPosts };

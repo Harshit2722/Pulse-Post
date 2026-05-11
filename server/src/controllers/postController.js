@@ -1,20 +1,40 @@
 const Post = require('../models/postModel');
+const Notification = require('../models/notificationModel');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require("../utils/ApiError")
+const { uploadToCloudinary } = require('../utils/cloudinary');
 
 const createPost = asyncHandler(async (req, res) => {
-    const { content, title, image, category } = req.body;
+    const { content, title, category } = req.body;
+
+    if (!content || !title)
+        throw new ApiError(400, "Please provide content, title and category");
+
+    const localFilePath = req.file?.path;
+
+    let imageUrl = "";
+    
+    if(req.file){
+        const image = await uploadToCloudinary(localFilePath);
+        
+        if(image){
+            imageUrl = image.url;
+        }
+        else{
+            throw new ApiError(500, "Failed to upload image");
+        }
+    }
 
     let post = await Post.create({
         content,
         title,
-        image,
         category,
-        author: req.user._id
+        author: req.user._id,
+        image: imageUrl
     })
 
-    post = await post.populate("author", "name");
+    post = await post.populate("author", "name avatar");
 
     // 🔥 REAL-TIME: Notify all connected clients
     const io = req.app.get("io");
@@ -31,7 +51,7 @@ const createPost = asyncHandler(async (req, res) => {
 
 const getAllPosts = asyncHandler(async (req, res) => {
     const posts = await Post.find()
-        .populate("author", "name")
+        .populate("author", "name avatar")
         .sort({ createdAt: -1 })
         .limit(20)
         .lean();
@@ -40,6 +60,18 @@ const getAllPosts = asyncHandler(async (req, res) => {
         new ApiResponse(200, posts, "Pulse feed loaded")
     );
 });
+
+const postById = asyncHandler(async (req,res)=>{
+    const {id} = req.params;
+
+    const post = await Post.findById(id).populate("author","name avatar").populate("comments.author","name avatar");
+
+    if(!post){
+        throw new ApiError(404,"Post not found");
+    }
+
+    return res.status(200).json(new ApiResponse(200,post,"Post fetched"))
+})
 
 const deletePost = asyncHandler(async (req, res) => {
     const { id } = req.params;
@@ -86,8 +118,22 @@ const toggleLike = asyncHandler(async (req, res) => {
 
     await post.save();
 
-    // 🔥 REAL-TIME: Notify everyone about the updated like count
+    // 🔥 PERSISTENT NOTIFICATION & REAL-TIME
     const io = req.app.get("io");
+    
+    if (!isLiked && post.author.toString() !== req.user._id.toString()) {
+        const notification = await Notification.create({
+            recipient: post.author,
+            sender: req.user._id,
+            type: 'like',
+            post: id,
+            message: `${req.user.name} loved your pulse: "${post.title.substring(0, 20)}..."`
+        });
+
+        const populatedNotif = await notification.populate('sender', 'name avatar');
+        io.emit(`notification-${post.author}`, populatedNotif);
+    }
+
     io.emit("update-likes", {
         postId: id,
         likes: post.likes,
@@ -117,10 +163,24 @@ const addComment = asyncHandler(async (req, res) => {
 
     await post.save();
     
-    const updatedPost = await Post.findById(id).populate("comments.author", "name");
+    const updatedPost = await Post.findById(id).populate("comments.author", "name avatar");
 
-    // 🔥 REAL-TIME: Notify everyone about the new reflection
+    // 🔥 PERSISTENT NOTIFICATION & REAL-TIME
     const io = req.app.get("io");
+
+    if (post.author.toString() !== req.user._id.toString()) {
+        const notification = await Notification.create({
+            recipient: post.author,
+            sender: req.user._id,
+            type: 'comment',
+            post: id,
+            message: `${req.user.name} shared a reflection on your pulse!`
+        });
+
+        const populatedNotif = await notification.populate('sender', 'name avatar');
+        io.emit(`notification-${post.author}`, populatedNotif);
+    }
+
     io.emit("new-comment", {
         postId: id,
         comments: updatedPost.comments,
@@ -133,11 +193,59 @@ const addComment = asyncHandler(async (req, res) => {
     );
 });
 
-const incrementViews = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    await Post.findByIdAndUpdate(id, { $inc: { views: 1 } });
-    return res.status(200).json(new ApiResponse(200, {}, "View counted"));
+const deleteComment = asyncHandler(async (req, res) => {
+    const { id, commentId } = req.params;
+    const post = await Post.findById(id);
+
+    if (!post) throw new ApiError(404, "Post not found");
+
+    const comment = post.comments.id(commentId);
+    if (!comment) throw new ApiError(404, "Comment not found");
+
+    if (comment.author.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "You can only delete your own reflections");
+    }
+
+    comment.deleteOne();
+    await post.save();
+
+    const updatedPost = await Post.findById(id).populate("comments.author", "name avatar");
+
+    const io = req.app.get("io");
+    io.emit("comment-deleted", { postId: id, comments: updatedPost.comments });
+
+    return res.status(200).json(
+        new ApiResponse(200, updatedPost.comments, "Reflection removed")
+    );
 });
 
-module.exports = { createPost, getAllPosts, deletePost, toggleLike, addComment, incrementViews };
+const updatePost = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { title, content, category } = req.body;
+
+    let post = await Post.findById(id);
+
+    if (!post) throw new ApiError(404, "Pulse not found");
+
+    if (post.author.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "Only the creator can edit this pulse");
+    }
+
+    post.title = title || post.title;
+    post.content = content || post.content;
+    post.category = category || post.category;
+
+    await post.save();
+
+    post = await post.populate("author", "name avatar");
+
+    const io = req.app.get("io");
+    io.emit("post-updated", post);
+
+    return res.status(200).json(
+        new ApiResponse(200, post, "Pulse updated successfully! ✨")
+    );
+});
+
+module.exports = { createPost, getAllPosts, deletePost, toggleLike, addComment, postById, deleteComment, updatePost };
 
